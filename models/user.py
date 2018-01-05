@@ -10,22 +10,21 @@ User class to handle the creation of a user and hold specific
 pieces of information constant such as user properties -- this might happend via a lookup table
 so this might not happen
 '''
-#a change
+
 
 class User(object):
 
-    def __init__(self, primary_shard_key_value, last_date_run, user_flows_file_location, event_dict_file_location):
+    def __init__(self, primary_shard_key_value, last_date_run, user_flows_file_location, event_dict_file_location, user_probability):
         self.primary_shard_key_value = primary_shard_key_value
         self.user_flows_file_location = user_flows_file_location
-        self.probability = random.uniform(0,1)
+        self.probability = user_probability
         self.event_dict = csv_to_dict(event_dict_file_location)
         self.time = last_date_run
-        #TODO clean up the shard key column so we don't assume 3 shard keys, need to determine amount and produce accordinly 
         self.shard_keys = self.event_dict['shardkeys']
         self.primary_shard_key_name = self.shard_keys[0]
         #remove session_id from shard key list if it is present so we can have more control of session_id creation and deletion within user flows
         #remove the primary_shard_key_value to better handle remaining secondary shard keys in the event class
-        self.shard_keys = [x for x in self.shard_keys if x.lower() not in ['session_id','sessionid', self.shard_keys[0].lower()]]
+        self.shard_keys = [x for x in self.shard_keys if x.lower().strip() not in ['session_id','sessionid', self.shard_keys[0].lower()]]
 
         # delete the shard keys from the event and property dic so we we can handle separately from events/flow creation later on in the even class
         del self.event_dict['shardkeys']
@@ -34,48 +33,63 @@ class User(object):
         event_list = list()
         #generate a session_id -- could move this into the for .items loop to make sure session is changed each time we do a new flow. not needed at the moment
         session_id = uuid.uuid4()
-        #TODO need to handle the additional shard keys
+        #TODO need to handle the additional shard keys in a smarter way
+        shard_key_dict = dict()
+        for shard_key in self.shard_keys:
+            shard_key_dict[shard_key] = uuid.uuid4()
         #loop through all of the user flows
-        #TODO need to create more variablilty between good and bad users. event generation count is too similar
+        #TODO need to create more variablilty between good and bad users. total number of events created is too similar
         for keys, values in flows_obj.items():
             for event_in_flow in values:
-
-                # random check to see if we change the session_id for the user
+                # random check to see if we change the session_id as well as the other non-primary ids
                 if (random.uniform(0, 1)) > .9:
                     session_id = uuid.uuid4()
-
-                # random check to see if they do the event
-                if random.uniform(0,1) <= self.probability: ## do a probability check -  if number is less than or equal to the probability of user value let them continue
-                    single_event = Event(event_name=event_in_flow, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id)
+                    for key, value in shard_key_dict.items():
+                        shard_key_dict[key] = uuid.uuid4()
+                # random check to see if they do the event, self.probability is per user so that "good" user succeed more and "bad" user fail
+                if random.uniform(0,1) <= self.probability:
+                    single_event = Event(event_name=event_in_flow,
+                                         primary_shard_key_name=self.primary_shard_key_name,
+                                         primary_shard_key_value=self.primary_shard_key_value,
+                                         event_dict=self.event_dict,
+                                         ts=self.time,
+                                         session_id=session_id,
+                                         shard_key_dict=shard_key_dict)
                     event = single_event.generate_event()
                     event_list.append(event)
-
-                    #TODO random roll to see if they do more events between events in a flow
-
+                    # random roll to see if they do more events between events in a flow
+                    if random.uniform(0, 1) <= .35:
+                        single_event = Event(event_name=event_in_flow,
+                                             primary_shard_key_name=self.primary_shard_key_name,
+                                             primary_shard_key_value=self.primary_shard_key_value,
+                                             event_dict=self.event_dict, ts=self.time, session_id=session_id,
+                                             shard_key_dict=shard_key_dict)
+                        event = single_event.generate_event()
+                        event_list.append(event)
                     ## increase the time stamp so we move forward in time
                     self.time = increase_time(self.time)
-
                 # if they do not pass the funnel flow, make sure they break out of that flow
                 # and generate 5 random events and add to their event list only if they are
                 # "good" user. probability of  great than 70
                 else:
-                    for x in range(2):
+                    for x in range(4):
                         random_event = self.event_dict['event'][round(random.uniform(0,1)*(len(self.event_dict['event'])-1))]
-                        single_event = Event(event_name=event_in_flow, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id)
+                        single_event = Event(event_name=random_event, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id, shard_key_dict=shard_key_dict)
                         event = single_event.generate_event()
                         event_list.append(event)
                         self.time = increase_time(self.time)
                     break
-            if self.probability > .7:
+            #after we have run through a defined flow fo events let's do a check to see if other random events are done. Good users should do this more often
+            if random.uniform(0, 1) <= self.probability:
                 for x in range(5):
                     random_event = self.event_dict['event'][round(random.uniform(0,1)*(len(self.event_dict['event'])-1))]
-                    single_event = Event(event_name=event_in_flow, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id)
+                    single_event = Event(event_name=random_event, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id, shard_key_dict=shard_key_dict)
                     event = single_event.generate_event()
                     event_list.append(event)
 
                     ## increase the time stamp so we move forward in time
                     self.time = increase_time(self.time)
-        return event_list
+        return event_list, self.probability
     # property to properly format the csv file of the event flows
     @property
     def flow_dict(self):
@@ -90,12 +104,6 @@ class User(object):
             flows[keys] = list(filter(None,flows[keys]))
         return flows
 
-    # calculate chance user has to get through a flow. range is 1% to 100%
-    def probability_to_complete(self, flow):
-        flow_length =len(flow)
-        probability = random.randrange(.01,1,.01)
-        return probability
-        pass
 
 
 
