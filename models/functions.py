@@ -1,6 +1,7 @@
 import csv
 import datetime
 import random
+from models.event import Event
 
 def csv_to_dict(file):
     data = dict()
@@ -22,3 +23,4 @@ def increase_time(time):
     time_increase = random.randrange(1, (60 * 60 * 3), 10)
     time = time + datetime.timedelta(seconds=time_increase)
     return time
+
