@@ -19,6 +19,6 @@ def csv_to_dict(file):
 
 def increase_time(time):
     ## increase the time stamp so we move forward in time
-    time_increase = random.randrange(1, (60 * 20), 1)
+    time_increase = random.randrange(1, (60 * 60 * 3), 10)
     time = time + datetime.timedelta(seconds=time_increase)
     return time
