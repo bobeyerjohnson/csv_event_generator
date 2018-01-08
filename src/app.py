@@ -2,32 +2,33 @@ __author__ = 'bojohnson'
 
 from pathlib import Path
 import uuid
-from models.user import User
-from models.functions import csv_to_dict, get_new_users
 import datetime
-import csv
 import json
 import random
+import gzip
+from src.models.user import User
+from src.models.functions import csv_to_dict, get_new_users
+
 
 '''
 this is a small app the creates a user and then generates events for them
 based on a csv file containing events, event meta data, a lookup table of user attributes
 and use flows
 '''
-# TODO - need to figure out a way to make people churn, later project would be to get people to come back after churning
 ##global values
-output_data_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/data_files/user_flow_files/'
-user_list_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/data_files/user_id_list/'
+output_data_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/src/data_files/user_flow_files/'
+user_list_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/src/data_files/user_id_list/'
 user_id_list_file_name = 'user_id_list'
 event_file = "/Users/bobeyer-johnson/Downloads/Dummy Data - SocialMessaging Data Set - Events.csv"
-# get the user flows file
 user_flows_file = '/Users/bobeyer-johnson/Downloads/Dummy Data - SocialMessaging Data Set - Flows.csv'
-last_date_run_file_location = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/data_files/last_date_run/'
+last_date_run_file_location = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/src/data_files/last_date_run/'
 last_date_run_file = 'last_date_script_was_run'
 todays_date = datetime.datetime.now()
 last_date_run = datetime.datetime.now()
+new_user_to_generate_per_period = 20
 
-def generate_data(primary_shard_key_dict):
+def generate_data(all_ids):
+    primary_shard_key_dict =  all_ids
     # Loop through all user Ids
     for shard_key, shard_key_values in primary_shard_key_dict.items():
         # create the user
@@ -40,6 +41,7 @@ def generate_data(primary_shard_key_dict):
         user_flows = user.flow_dict
         # generate all user events and flows for the users
         data, churn = user.generate_flows(user_flows)
+        primary_shard_key_dict[shard_key]['churned'] = churn
         # make sure we returned some events in our data object to avoid throwing and error
         if len(data) > 1:
             # check the date of the last event and if it isn't to the current run date re-run user.generate_flows to get more events
@@ -47,20 +49,19 @@ def generate_data(primary_shard_key_dict):
             while dt <= todays_date:
                 more_data, churn = user.generate_flows(user_flows)
                 for line in more_data:
-                    data.append(line)
                     # make sure to assign the most up to data
                     dt = datetime.datetime.strptime(line['ts'], "%Y-%m-%d %H:%M:%S")
+                    data.append(line)
             # put in json and write to file
-            with open('{}user_{}'.format(output_data_path, shard_key), 'w') as f:
-                f.write(json.dumps(data))
-    #TODO need to make it so the user has a "churned" key value in the shard key list and remove all churned users before writing the fiile
-    if churn:
-        print(primary_shard_key_dict[shard_key])
-        print('User churned!')
-        del primary_shard_key_dict[shard_key]
-
-
-    # after all the users have generated events write the remaining users to a file and save
+            with gzip.open('{}user_{}_{}.gz'.format(output_data_path, shard_key, todays_date.strftime("%Y-%m-%d")), 'w') as f:
+                f.write(json.dumps(data).encode(errors='ignore'))
+    # create a list of all ids that should now churn
+    ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
+    # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
+    for id in ids_to_remove:
+        print("user churned! - {} ".format(id))
+        del primary_shard_key_dict[id]
+    # after all the ids have generated events write the remaining users to a file and save
     with open("{}{}.json".format(user_list_path, user_id_list_file_name), 'w') as write_user_id_file:
         write_user_id_file.write(json.dumps(primary_shard_key_dict))
     # once all events have been generated make it so the date file is updated
@@ -92,17 +93,19 @@ if last_date_run < todays_date:
             primary_shard_key_dict = json.loads(read_user_id_file.read())
             primary_shard_key_dict = primary_shard_key_dict
         # add some new users to the file - this is mostly so we can change metrics like retention and do "new user" analysis
-        primary_shard_key_dict = get_new_users(primary_shard_key_dict)
+        primary_shard_key_dict = get_new_users(primary_shard_key_dict=primary_shard_key_dict,
+                                               number_of_users=new_user_to_generate_per_period)
         generate_data(primary_shard_key_dict)
 
     else:
         # create a dictionary of users where the key is the user id and store additional details about the user in another dict
         primary_shard_key_dict = dict()
-        for x in range(0, 500):
+        for x in range(1000):
             shard_key1 = str(uuid.uuid4())
             user_probability = random.uniform(0, 1)
             primary_shard_key_dict[shard_key1] = dict()
             primary_shard_key_dict[shard_key1]['user_probability'] = user_probability
+            primary_shard_key_dict[shard_key1]['churned'] = 'False'
         # set the "last run date" to be 3 months ago so we can back propogate some new data
         last_date_run = datetime.datetime.now() - datetime.timedelta(days=90)
         generate_data(primary_shard_key_dict)

@@ -1,9 +1,9 @@
 import csv
 import random
-from models.event import Event
-from models.functions import csv_to_dict, increase_time
-import datetime
 import uuid
+from src.models.event import Event
+from src.models.functions import csv_to_dict, increase_time
+
 
 '''
 User class to handle the creation of a user and hold specific
@@ -43,12 +43,12 @@ class User(object):
         for keys, values in flows_obj.items():
             for event_in_flow in values:
                 # random check to see if we change the session_id as well as the other non-primary ids
-                if (random.uniform(0, 1)) >= .9:
+                if (random.uniform(0, 1)) >= .8:
                     session_id = uuid.uuid4()
                     for key, value in shard_key_dict.items():
                         shard_key_dict[key] = uuid.uuid4()
                 # random check to see if they do the event, self.probability is per user so that "good" user succeed more and "bad" user fail
-                if random.uniform(0,1) <= self.probability:
+                if self.probability >= .6:
                     single_event = Event(event_name=event_in_flow,
                                          primary_shard_key_name=self.primary_shard_key_name,
                                          primary_shard_key_value=self.primary_shard_key_value,
@@ -59,40 +59,45 @@ class User(object):
                     event = single_event.generate_event()
                     event_list.append(event)
                     # random roll to see if they do more events between events in a flow
-                    if random.uniform(0, 1) <= .35:
-                        single_event = Event(event_name=event_in_flow,
-                                             primary_shard_key_name=self.primary_shard_key_name,
-                                             primary_shard_key_value=self.primary_shard_key_value,
-                                             event_dict=self.event_dict, ts=self.time, session_id=session_id,
-                                             shard_key_dict=shard_key_dict)
-                        event = single_event.generate_event()
-                        event_list.append(event)
-                    ## increase the time stamp so we move forward in time
-                    self.time = increase_time(self.time)
+                    # this will to totally random as to whether "good" or "bad" user do more events or not
+                    if random.uniform(0,1) >= .5:
+                        for x in range(6):
+                            random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
+                            single_event = Event(event_name=random_event,
+                                                 primary_shard_key_name=self.primary_shard_key_name,
+                                                 primary_shard_key_value=self.primary_shard_key_value,
+                                                 event_dict=self.event_dict, ts=self.time, session_id=session_id,
+                                                 shard_key_dict=shard_key_dict)
+                            event = single_event.generate_event()
+                            event_list.append(event)
+                            ## increase the time stamp so we move forward in time
+                            self.time = increase_time(time=self.time,
+                                              probability=self.probability)
                 # if they do not pass the funnel flow, make sure they break out of that flow
-                # and generate 4 random events and add to their event list only if they are
+                # and generate 5random events and add to their event list only if they are
                 # "good" user. probability of  great than 70
                 else:
-                    for x in range(4):
+                    for x in range(5):
                         random_event = self.event_dict['event'][round(random.uniform(0,1)*(len(self.event_dict['event'])-1))]
                         single_event = Event(event_name=random_event, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id, shard_key_dict=shard_key_dict)
                         event = single_event.generate_event()
                         event_list.append(event)
-                        self.time = increase_time(self.time)
+                        self.time = increase_time(time=self.time,
+                                                  probability=self.probability)
                     break
             #after we have run through a defined flow fo events let's do a check to see if other random events are done. Good users should do this more often
-            if random.uniform(0, 1) <= self.probability:
-                for x in range(5):
+            if self.probability >= .6:
+                for x in range(10):
                     random_event = self.event_dict['event'][round(random.uniform(0,1)*(len(self.event_dict['event'])-1))]
                     single_event = Event(event_name=random_event, primary_shard_key_name=self.primary_shard_key_name, primary_shard_key_value=self.primary_shard_key_value, event_dict=self.event_dict, ts=self.time, session_id=session_id, shard_key_dict=shard_key_dict)
                     event = single_event.generate_event()
                     event_list.append(event)
-
                     ## increase the time stamp so we move forward in time
-                    self.time = increase_time(self.time)
+                    self.time = increase_time(time=self.time,
+                                              probability=self.probability)
             # random check about the user's probability to see if they continue doing flows of if they stop
             # random check will be low because if they do not pass this test we will also make them churn
-            if random.uniform(0,0.2) >= self.probability:
+            if self.probability <= .2:
                 self.churn = True
                 break
         return event_list, self.churn
