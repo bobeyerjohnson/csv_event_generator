@@ -2,11 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4051b6f7-f71e-4264-85fc-cb45e28c9bd9" name="Default" comment="">
-      <change beforePath="" afterPath="$PROJECT_DIR$/src/data_files/__init__.py" />
-      <change beforePath="" afterPath="$PROJECT_DIR$/src/models/__init__.py" />
-      <change beforePath="$PROJECT_DIR$/.idea/csv_event_generator.iml" afterPath="$PROJECT_DIR$/.idea/csv_event_generator.iml" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" afterPath="$PROJECT_DIR$/.gitignore" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change beforePath="$PROJECT_DIR$/src/app.py" afterPath="$PROJECT_DIR$/event_generator.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -29,11 +26,21 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="event.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="event.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/models/event.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="450">
               <caret line="25" column="0" lean-forward="false" selection-start-line="25" selection-start-column="0" selection-end-line="25" selection-end-column="0" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name=".gitignore" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/.gitignore">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="506">
+              <caret line="146" column="1" lean-forward="false" selection-start-line="146" selection-start-column="1" selection-end-line="146" selection-end-column="1" />
               <folding />
             </state>
           </provider>
@@ -103,6 +110,7 @@
         <option value="$PROJECT_DIR$/src/models/__init__.py" />
         <option value="$PROJECT_DIR$/src/data_files/__init__.py" />
         <option value="$PROJECT_DIR$/event_generator.py" />
+        <option value="$PROJECT_DIR$/.gitignore" />
       </list>
     </option>
   </component>
@@ -628,6 +636,14 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="450">
           <caret line="25" column="0" lean-forward="false" selection-start-line="25" selection-start-column="0" selection-end-line="25" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/.gitignore">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="506">
+          <caret line="146" column="1" lean-forward="false" selection-start-line="146" selection-start-column="1" selection-end-line="146" selection-end-column="1" />
           <folding />
         </state>
       </provider>
