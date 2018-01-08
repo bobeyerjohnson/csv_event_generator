@@ -20,6 +20,7 @@ class User(object):
         self.probability = user_probability
         self.event_dict = csv_to_dict(event_dict_file_location)
         self.time = last_date_run
+        self.churn = False
         self.shard_keys = self.event_dict['shardkeys']
         self.primary_shard_key_name = self.shard_keys[0]
         #remove session_id from shard key list if it is present so we can have more control of session_id creation and deletion within user flows
@@ -42,7 +43,7 @@ class User(object):
         for keys, values in flows_obj.items():
             for event_in_flow in values:
                 # random check to see if we change the session_id as well as the other non-primary ids
-                if (random.uniform(0, 1)) > .9:
+                if (random.uniform(0, 1)) >= .9:
                     session_id = uuid.uuid4()
                     for key, value in shard_key_dict.items():
                         shard_key_dict[key] = uuid.uuid4()
@@ -69,7 +70,7 @@ class User(object):
                     ## increase the time stamp so we move forward in time
                     self.time = increase_time(self.time)
                 # if they do not pass the funnel flow, make sure they break out of that flow
-                # and generate 5 random events and add to their event list only if they are
+                # and generate 4 random events and add to their event list only if they are
                 # "good" user. probability of  great than 70
                 else:
                     for x in range(4):
@@ -89,7 +90,12 @@ class User(object):
 
                     ## increase the time stamp so we move forward in time
                     self.time = increase_time(self.time)
-        return event_list, self.probability
+            # random check about the user's probability to see if they continue doing flows of if they stop
+            # random check will be low because if they do not pass this test we will also make them churn
+            if random.uniform(0,0.2) >= self.probability:
+                self.churn = True
+                break
+        return event_list, self.churn
     # property to properly format the csv file of the event flows
     @property
     def flow_dict(self):
