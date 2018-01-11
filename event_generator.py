@@ -16,12 +16,12 @@ based on a csv file containing events, event meta data, a lookup table of user a
 and use flows
 '''
 ##global values
-output_data_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/src/data_files/user_flow_files/'
-user_list_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/src/data_files/user_id_list/'
+output_data_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_v3/csv_event_generator/src/data_files/user_flow_files/'
+user_list_path = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_v3/csv_event_generator/src/data_files/user_id_list/'
 user_id_list_file_name = 'user_id_list'
 event_file = "/Users/bobeyer-johnson/Downloads/Dummy Data - SocialMessaging Data Set - Events.csv"
 user_flows_file = '/Users/bobeyer-johnson/Downloads/Dummy Data - SocialMessaging Data Set - Flows.csv'
-last_date_run_file_location = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_github2/csv_event_generator/src/data_files/last_date_run/'
+last_date_run_file_location = '/Users/bobeyer-johnson/Documents/interana/Solutions/event_generator_v3/csv_event_generator/src/data_files/last_date_run/'
 last_date_run_file = 'last_date_script_was_run'
 today_date = datetime.datetime.now()
 new_user_to_generate_per_period = 10
