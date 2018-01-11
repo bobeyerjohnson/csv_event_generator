@@ -17,12 +17,6 @@ based various separate csv files containing events, event meta data,
 user flows, and a lookup table of user attributes
 '''
 
-
-##global values
-user_id_list_file_name = 'user_id_list'
-last_date_run_file = 'last_date_script_was_run'
-today_date = datetime.datetime.now()
-new_user_to_generate_per_period = 20
 #TODO data looks to uniform and "non human" need to make it look a little better visually
 def generate_data(all_ids, last_run_date, initial_data_generation, today, event_folder_path, user_flows_file, event_file):
     #get the number of users to understand progress and print to console
@@ -108,12 +102,18 @@ def write_config_file(event_file, user_flows_file, config_path):
 
 #start of app
 if __name__ == '__main__':
+    ##global values
+    user_id_list_file_name = 'user_id_list'
+    last_date_run_file = 'last_date_script_was_run'
+    today_date = datetime.datetime.now()
+    new_user_to_generate_per_period = 20
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
     event_folder_path = "{}/events/".format(current_path)
     if not os.path.exists(config_directory):
         os.makedirs(config_directory)
+        number_of_original_users =  input("How many users would you like to generate to start? ")
         event_file, user_flows_file = ask_for_file_paths()
         # write the config file which will just contain the file paths for the event and user flow files
         write_config_file(event_file, user_flows_file, config_path)
@@ -164,7 +164,7 @@ if __name__ == '__main__':
         else:
             # create a dictionary of users where the key is the user id and store additional details about the user in another dict
             primary_shard_key_dict = dict()
-            for x in range(200):
+            for x in range(number_of_original_users):
                 primary_shard_key = str(uuid.uuid4())
                 user_probability = random.uniform(0, 1)
                 primary_shard_key_dict[primary_shard_key] = dict()
