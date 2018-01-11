@@ -22,8 +22,8 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today, event_
     #get the number of users to understand progress and print to console
     num_user = len(all_ids)
     progress_counter =0
-    user_index = 0
-    no_data_count =0
+    loop_counter = 0
+    ten_percent = num_user*.1
     primary_shard_key_dict =  all_ids
     # Loop through all user Id
     for shard_key, shard_key_values in primary_shard_key_dict.items():
@@ -61,10 +61,10 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today, event_
                                                           today_date.strftime("%Y-%m-%d")), 'w') as f:
                     f.write(json.dumps(data).encode(errors='ignore'))
         progress_counter = progress_counter + 1
-        decimals = [x * 0.05 for x in range(0, 20)]
-        for x in decimals:
-            if round(x,2) == (round(progress_counter/num_user,2)):
-                print("Progress - {}%".format(round((progress_counter/num_user)*100),4))
+        loop_counter = loop_counter +1
+        if progress_counter % ten_percent == 0:
+            print("Progress: {}%".format(round((progress_counter/num_user),2)*100))
+            loop_counter = 0
     # create a list of all ids that should now churn
     ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
     # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
