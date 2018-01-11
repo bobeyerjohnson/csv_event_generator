@@ -1,8 +1,8 @@
 import csv
 import random
 import uuid
-from src.models.event import Event
-from src.models.functions import csv_to_dict, increase_time
+from models.event import Event
+from models.functions import csv_to_dict, increase_time
 import datetime
 
 
