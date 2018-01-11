@@ -145,3 +145,6 @@ venv.bak/
 
 .idea
 
+*user_id_list*
+
+*last_date_script_was_run*
