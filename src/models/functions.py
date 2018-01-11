@@ -21,11 +21,19 @@ def csv_to_dict(file):
 
 # increase the time stamp so we move forward in time
 def increase_time(time, probability):
+    day_of_week = time.weekday() # sunday is 0
+    hour_of_day = time.hour
+    # make it so that monday through friday and 9 am to 10 pm have more events by assigning a variable that makes it so
+    # random range below is smaller and thus will product more events
+    if day_of_week in [0,1,2,3,4] and hour_of_day in [9,10,11,12,13,14,15,16,17,18,19,20,21,22]:
+        interval = 3
+    else:
+        interval = (60 * 10)
     if probability >= .6:
-        time_increase = random.randrange(1, (60 * 60 * 6), 10)
+        time_increase = random.randrange(1, (60 * 60 * 1.5), interval)
         time = time + datetime.timedelta(seconds=time_increase)
     else:
-        time_increase = random.randrange(1, (60 * 60 * 12), 10)
+        time_increase = random.randrange(1, (60 * 60 * 6), interval)
         time = time + datetime.timedelta(seconds=time_increase)
     return time
 
