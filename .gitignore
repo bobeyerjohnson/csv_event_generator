@@ -152,3 +152,4 @@ venv.bak/
 # folders to ignore
 config/
 events/
+files/
