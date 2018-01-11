@@ -113,7 +113,7 @@ if __name__ == '__main__':
     event_folder_path = "{}/events/".format(current_path)
     if not os.path.exists(config_directory):
         os.makedirs(config_directory)
-        number_of_original_users =  input("How many users would you like to generate to start? ")
+        number_of_original_users =  int(input("How many users would you like to generate to start? "))
         event_file, user_flows_file = ask_for_file_paths()
         # write the config file which will just contain the file paths for the event and user flow files
         write_config_file(event_file, user_flows_file, config_path)
