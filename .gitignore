@@ -145,6 +145,10 @@ venv.bak/
 
 .idea
 
+# specific files to ignore
 *user_id_list*
-
 *last_date_script_was_run*
+
+# folders to ignore
+config/
+events/

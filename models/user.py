@@ -34,13 +34,11 @@ class User(object):
             self.shard_key_dict[single_additional_shard_key] = uuid.uuid4()
         # delete the shard keys from the event and property dic so we we can handle separately from events/flow creation later on in the even class
         del self.event_dict['shardkeys']
+        self.churn_threshold = .4
 
     def generate_events(self, flows_obj, start_time):
         self.time = start_time
         event_list = list()
-        self.shard_key_dict = dict()
-        #TODO create a while loop that breaks when our most recent event is close to today. return the event list
-        #TODO this will allow us to replace the flow_parser function
         while True:
             if (self.time + datetime.timedelta(days=.5)) > self.today:
                 break
@@ -114,6 +112,9 @@ class User(object):
                             break
                 else:
                     break
+            # make it so that bad user can churn here otherwise we have 100% retention when we first generate new users
+            if self.probability <= self.churn_threshold:
+                break
             # after we have run through a defined flow of events let's do a check to see if other random events are done. Good users should do this more often
             if self.probability >= .6 and (self.time + datetime.timedelta(days=.5)) < self.today:
                 for counter in range(10):
@@ -138,12 +139,6 @@ class User(object):
         else:
             return event_list
 
-    def flow_parser(self, event):
-        time_of_event = datetime.datetime.strptime(event['ts'], "%Y-%m-%d %H:%M:%S")
-        if (time_of_event + datetime.timedelta(days=.5)) < self.today:
-            return event, time_of_event
-        else:
-            return None, None
     def generate_flows(self, flows_obj):
         final_list_of_events = self.generate_events(flows_obj=flows_obj, start_time=self.time)
         # if we return none for the user list set make it so no_events_in_list is True
@@ -156,7 +151,7 @@ class User(object):
         # random check will be low because if they do not pass this test we will also make them churn
         # We also need to check to see if the user has any events to reutrn and handle all possibilities of no events and churn
         # return should be the list of event (or None) and churn as true or false
-        if self.probability <= .2:
+        if self.probability <= self.churn_threshold:
             self.churn = True
             if no_events_in_list:
                 return None, self.churn
