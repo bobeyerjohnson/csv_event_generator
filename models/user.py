@@ -71,8 +71,7 @@ class User(object):
                                 if random.uniform(0, 1) >= .5:
                                     for x in range(6):
                                         if (self.time + datetime.timedelta(days=.5)) < self.today:
-                                            random_event = self.event_dict['event'][
-                                                round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
+                                            random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
                                             single_event = Event(event_name=random_event,
                                                                  primary_shard_key_name=self.primary_shard_key_name,
                                                                  primary_shard_key_value=self.primary_shard_key_value,
@@ -92,8 +91,7 @@ class User(object):
                             else:
                                 for variable in range(5):
                                     if (self.time + datetime.timedelta(days=.5)) < self.today:
-                                        random_event = self.event_dict['event'][
-                                            round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
+                                        random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
                                         single_event = Event(event_name=random_event,
                                                              primary_shard_key_name=self.primary_shard_key_name,
                                                              primary_shard_key_value=self.primary_shard_key_value,
@@ -119,8 +117,7 @@ class User(object):
             if self.probability >= .6 and (self.time + datetime.timedelta(days=.5)) < self.today:
                 for counter in range(10):
                     if (self.time + datetime.timedelta(days=.5)) < self.today:
-                        random_event = self.event_dict['event'][
-                            round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
+                        random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
                         single_event = Event(event_name=random_event,
                                              primary_shard_key_name=self.primary_shard_key_name,
                                              primary_shard_key_value=self.primary_shard_key_value,

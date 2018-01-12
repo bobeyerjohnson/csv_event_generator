@@ -1,4 +1,5 @@
 import random
+import math
 
 '''
 Event class to handle the creation of a event and associated meta data
@@ -16,18 +17,46 @@ class Event(object):
         self.session_id = session_id
         self.shard_key_dict = shard_key_dict
 
+
     def generate_event(self):
         event = dict()
         event[self.primary_shard_key_name] = str(self.primary_shard_key_value)
         event['event'] = self.event_name
         event['session_id'] = str(self.session_id)
-        for key, values in self.shard_key_dict.items():
-            event[key] = str(values)
+        for key, shard_values in self.shard_key_dict.items():
+            event[key] = str(shard_values)
         for property_name, values in self.event_dict.items():
+            # be sure to skip the event dict
+            if not property_name == 'event':
             #get the number of property values for each property
-            values_length = len(values)
-            event[property_name] = self.event_dict[property_name][(round(values_length * (random.uniform(0,1)))-1)]
-            event['ts'] = self.ts.strftime("%Y-%m-%d %H:%M:%S")
+                values_length = (len(values)-1)
+                random_roll = random.uniform(0, 1)
+                if values_length == 1:
+                    if random_roll > .4:
+                        property_index = 0
+                    else:
+                        property_index = 1
+                elif values_length == 2:
+                    if random_roll > .5:
+                        property_index = 0
+                    elif random_roll <= .5 and random_roll >= .2:
+                        property_index = 1
+                    else:
+                        property_index = 2
+                elif values_length > 2:
+                    intervals = math.floor(values_length / 4)
+                    if random_roll > .6:
+                        property_index = random.randrange(0,intervals+1)
+                    elif random_roll <= .6 and random_roll >= .30:
+                        property_index = random.randrange(intervals,(intervals*2)+1)
+                    elif random_roll < .30 and random_roll > .05:
+                        property_index = random.randrange((intervals*2), (intervals * 3)+1)
+                    else:
+                        property_index = random.randrange((intervals * 3), (intervals * 4)+1)
+                else:
+                    property_index = 0
+                event[property_name] = self.event_dict[property_name][property_index]
+                event['ts'] = self.ts.strftime("%Y-%m-%d %H:%M:%S")
         return event
 
 

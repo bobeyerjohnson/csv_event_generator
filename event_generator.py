@@ -84,19 +84,50 @@ def ensure_dir_exists(folder_path):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def ask_for_file_paths():
+def ask_for_event_file():
     event_file = input(
         "Please provide the Event csv file \n Ex:/mnt/tank/pool/filer2/demo_data/social_demo/events_csv.csv \n File: ")
+    event_file = event_file.strip()
+    event_file_check = Path(event_file)
+    if not event_file_check.is_file():
+        print("That doesn't seem to be a file. Please double check the file path and submit again")
+        ask_for_event_file()
+    return event_file
+
+def ask_for_flows_file():
     user_flows_file = input(
         "Please provide the User Flows csv file \n Ex:/mnt/tank/pool/filer2/demo_data/social_demo/user_flows_csv.csv \n File: ")
-    return event_file, user_flows_file
-def write_config_file(event_file, user_flows_file, config_path):
+    user_flows_file = user_flows_file.strip()
+    user_flows_file_check = Path(user_flows_file)
+    if not user_flows_file_check.is_file():
+        print("That doesn't seem to be a file. Please double check the file path and submit again")
+        ask_for_flows_file()
+    return user_flows_file
+
+def write_config_file(event_file, user_flows_file, config_path, event_folder_path):
     config_data = dict()
     config_data['event_file_path'] = event_file
     config_data['flows_file_path'] = user_flows_file
+    config_data['event_folder_path'] = event_folder_path
     with open("{}config.json".format(config_path), 'w') as config_file_writer:
         config_file_writer.write(json.dumps(config_data))
 
+def ask_to_specify_event_path(current_path):
+    specify_path = input("Would you like to specify a specific location where Event files should be written to? \n if not and 'events' folder will be created here and all files will be placed in this foler \n yes or no? ")
+    if specify_path.strip().lower() == 'yes':
+        event_path = input("Please provide the path where you would like to place the files. \n Path:")
+        event_path_check = os.path.dirname(event_path)
+        if os.path.exists(event_path_check):
+            return "{}events/".format(event_path)
+        else:
+            print("That folder location doesn't seem to exist. Please check the path and try again")
+            ask_to_specify_event_path()
+    elif specify_path.strip().lower() == 'no':
+        event_path = "{}/events/".format(current_path)
+        return event_path
+    else:
+        print("That wasn't a valid answer. Please try again.")
+        ask_to_specify_event_path()
 
 
 
@@ -110,13 +141,15 @@ if __name__ == '__main__':
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
-    event_folder_path = "{}/events/".format(current_path)
+    # event_folder_path = "{}/events/".format(current_path)
     if not os.path.exists(config_directory):
-        os.makedirs(config_directory)
         number_of_original_users =  int(input("How many users would you like to generate to start? "))
-        event_file, user_flows_file = ask_for_file_paths()
+        event_file = ask_for_event_file()
+        user_flows_file = ask_for_flows_file()
+        event_folder_path = ask_to_specify_event_path(current_path=current_path)
+        os.makedirs(config_directory)
         # write the config file which will just contain the file paths for the event and user flow files
-        write_config_file(event_file, user_flows_file, config_path)
+        write_config_file(event_file=event_file, user_flows_file=user_flows_file, config_path=config_path, event_folder_path=event_folder_path)
         #create the top level events folder
     else:
         # let's grab the event and flow files from the config file and generate some more data
@@ -125,9 +158,12 @@ if __name__ == '__main__':
                 config_file_data = json.loads(config_file_reader.read())
                 event_file = config_file_data['event_file_path']
                 user_flows_file = config_file_data['flows_file_path']
+                event_folder_path = config_file_data['event_folder_path']
         else:
-            event_file, user_flows_file = ask_for_file_paths()
-            write_config_file(event_file, user_flows_file, config_path)
+            event_file = ask_for_event_file()
+            user_flows_file = ask_for_flows_file()
+            event_folder_path = ask_to_specify_event_path(current_path=current_path)
+            write_config_file(event_file=event_file, user_flows_file=user_flows_file, config_path=config_path, event_folder_path=event_folder_path)
     # get the last time the script was run from the data file
     date_file_check = Path("{}{}".format(config_path, last_date_run_file))
     if date_file_check.is_file():
