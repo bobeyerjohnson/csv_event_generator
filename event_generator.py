@@ -194,6 +194,7 @@ if __name__ == '__main__':
             # add some new users to the file - this is mostly so we can change metrics like retention and do "new user" analysis
             primary_shard_key_dict = get_new_users(primary_shard_key_dict=primary_shard_key_dict,
                                                    number_of_users=new_user_to_generate_per_period)
+            print('script running!')
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
                           initial_data_generation=False,
@@ -213,6 +214,7 @@ if __name__ == '__main__':
                 primary_shard_key_dict[primary_shard_key]['churned'] = 'False'
             # set the "last run date" to be 3 months ago so we can back propogate some new data
             last_date_run = datetime.datetime.now() - datetime.timedelta(days=90)
+            print('script running!')
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
                           initial_data_generation=True,
