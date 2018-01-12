@@ -49,6 +49,7 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today, event_
             #check if a folder today exists, if not create it
             event_folder_path_with_date = "{}{}/".format(event_folder_path, today_date.strftime("%Y-%m-%d"))
             event_directory = os.path.dirname(event_folder_path_with_date)
+            os.umask(0)
             if os.path.exists(event_directory):
                 with gzip.open('{}/user_{}_{}.gz'.format(event_directory,
                                                         shard_key,
@@ -104,11 +105,12 @@ def ask_for_flows_file():
         ask_for_flows_file()
     return user_flows_file
 
-def write_config_file(event_file, user_flows_file, config_path, event_folder_path):
+def write_config_file(event_file, user_flows_file, config_path, event_folder_path, new_user_to_generate_per_period):
     config_data = dict()
     config_data['event_file_path'] = event_file
     config_data['flows_file_path'] = user_flows_file
     config_data['event_folder_path'] = event_folder_path
+    config_data['new_user_to_generate_per_period'] = new_user_to_generate_per_period
     with open("{}config.json".format(config_path), 'w') as config_file_writer:
         config_file_writer.write(json.dumps(config_data))
 
@@ -137,29 +139,32 @@ if __name__ == '__main__':
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
     today_date = datetime.datetime.now()
-    new_user_to_generate_per_period = 20
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
     # event_folder_path = "{}/events/".format(current_path)
     if not os.path.exists(config_directory):
         number_of_original_users =  int(input("How many users would you like to generate to start? "))
+        new_user_to_generate_per_period = ((number_of_original_users *.1)/30)
         event_file = ask_for_event_file()
         user_flows_file = ask_for_flows_file()
         event_folder_path = ask_to_specify_event_path(current_path=current_path)
         os.makedirs(config_directory)
         # write the config file which will just contain the file paths for the event and user flow files
-        write_config_file(event_file=event_file, user_flows_file=user_flows_file, config_path=config_path, event_folder_path=event_folder_path)
+        write_config_file(event_file=event_file, user_flows_file=user_flows_file, config_path=config_path, event_folder_path=event_folder_path, new_user_to_generate_per_period=new_user_to_generate_per_period)
         #create the top level events folder
     else:
-        # let's grab the event and flow files from the config file and generate some more data
+        # let's grab the the configuration details we need
         if os.path.getsize("{}config.json".format(config_path)) > 0:
             with open ("{}config.json".format(config_path), 'r') as config_file_reader:
                 config_file_data = json.loads(config_file_reader.read())
                 event_file = config_file_data['event_file_path']
                 user_flows_file = config_file_data['flows_file_path']
                 event_folder_path = config_file_data['event_folder_path']
+                new_user_to_generate_per_period = config_file_data['new_user_to_generate_per_period']
         else:
+            number_of_original_users = int(input("How many users would you like to generate to start? "))
+            new_user_to_generate_per_period = ((number_of_original_users * .1) / 30)
             event_file = ask_for_event_file()
             user_flows_file = ask_for_flows_file()
             event_folder_path = ask_to_specify_event_path(current_path=current_path)

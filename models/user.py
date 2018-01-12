@@ -34,7 +34,7 @@ class User(object):
             self.shard_key_dict[single_additional_shard_key] = uuid.uuid4()
         # delete the shard keys from the event and property dic so we we can handle separately from events/flow creation later on in the even class
         del self.event_dict['shardkeys']
-        self.churn_threshold = .4
+        self.churn_threshold = .6
 
     def generate_events(self, flows_obj, start_time):
         self.time = start_time
