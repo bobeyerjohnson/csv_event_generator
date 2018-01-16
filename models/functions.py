@@ -38,7 +38,7 @@ def increase_time(time, probability):
     return time
 
 def get_new_users(primary_shard_key_dict, number_of_users):
-    for new_user in range(number_of_users):
+    for new_user in range(round(number_of_users)):
         shard_key1 = str(uuid.uuid4())
         user_probability = random.uniform(0, 1)
         primary_shard_key_dict[shard_key1] = dict()
