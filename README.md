@@ -1,5 +1,5 @@
 # Dummy Event Generation Script
-This is a simple python script designed to generate events based on a formatted csv file with dummy data. Dummy data is outputed in formatted JSON
+This is a simple python script designed to generate events based on a formatted csv file with dummy data. Dummy data is outputed in JSON
 ### How to Run
 Within the root folder run --
 ```linux
