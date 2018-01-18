@@ -16,7 +16,9 @@ Then follow the promts to provide the needed files and dir locations.
    
 ## Script Logic
 ### Basic Logic
-Once provided a number of user to generate, the Event File, Flows File, and file output location the script will generate events for each primary shardkey one at a time. For each primary shardkey we will take in all flows provided in the "Flows file" and attempt to run the shardkey through each flow. At each event we see if the shardkey "succeeds" and thuse performs the event, or if they fail and break out of the flow. If at any point a shardkey breaks out of a single flow they will then move onto the next flow and attempt each of those events in order. This process will continue until the shard key "churns" (more info below) or until they have performed enough events to move them to the day the script was run. I.e. the present time.
+Once provided a number of shardkeys to generate, the Event File, Flows File, and a file output location the script will generate events for each primary shardkey one shardkey at a time. For each primary shardkey we will take in all flows provided in the "Flows file" and attempt to run the shardkey through each flow. At each event we see if the shardkey "succeeds" and thus performs the event, or if they fail and break out of the flow. If at any point a shardkey breaks out of a single flow they will then move onto the next flow and attempt each of those events in order. This process will continue until the shardkey "churns" (more info below) or until they have performed enough events to move them to the day the script was run. I.e. the present time.
+### ShardKeys Churing
+As this script is designed to try and mimic real life behavior of users of a product or a IoT device, there is logic for shardkeys to stop generating events so this "churn" behavior can be analyzed. As of now churn is rudimentry and each user is assigned a "churn probability" upon their creation. In theory each user has a 60% of churning at some point after being created, but this logic is loose and will be updated through later updates. 
 ### Infulencing frequency of evnets
 If you wish for a single event, or a set of events to occur more often then other simple include the frequency said event(s) appear in the "flows." In addition, having these events occur at the beginning of a flow will increase the frequency at which they are performed
 ### Influenceing frequency of properties
@@ -29,7 +31,8 @@ Event property value frequency is determined by their position within their resp
   - Whenever 4 or more property values are included the script will divide the list into quartiles and values that fall into the top quartile (first x number of rows in the csv file) will appear the most, with fequency of property values decreasing as we move into the second of the fourth quartiles and so on
 
 ## Potential future upates
-1) Better control of non-primary shard keys
+1) Better control of non-primary shardkeys
 2) Creation of a "user table"
+3) Better "churn" conditions for shardkeys
 3) Speed improvements
 4) Ganular control of what properties appear on what events
