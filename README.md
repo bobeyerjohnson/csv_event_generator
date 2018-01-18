@@ -30,7 +30,7 @@ Event property value frequency is determined by their position within their resp
 * 4 or More Property Values:
   - Whenever 4 or more property values are included the script will divide the list into quartiles and values that fall into the top quartile (first x number of rows in the csv file) will appear the most, with fequency of property values decreasing as we move into the second of the fourth quartiles and so on
 
-## Potential future upates
+## Potential future updates
 1) Better control of non-primary shardkeys
 2) Creation of a "user table"
 3) Better "churn" conditions for shardkeys
