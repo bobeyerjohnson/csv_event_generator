@@ -9,6 +9,7 @@ import gzip
 from models.user import User
 from models.functions import csv_to_dict, get_new_users
 import os
+from models.lookup_table import Lookup_table
 
 
 '''
@@ -17,8 +18,8 @@ based various separate csv files containing events, event meta data,
 user flows, and a lookup table of user attributes
 '''
 
-#TODO data looks to uniform and "non human" need to make it look a little better visually
-def generate_data(all_ids, last_run_date, initial_data_generation, today, event_folder_path, user_flows_file, event_file):
+#TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
+def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file):
     #get the number of users to understand progress and print to console
     num_user = len(all_ids)
     progress_counter =0
@@ -39,27 +40,28 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today, event_
                     user_flows_file_location=user_flows_file,
                     event_dict_file_location=event_file,
                     user_probability=shard_key_values['user_probability'],
-                    today=today)
+                    today=today_date)
         # format the flows from the csv file into usable JSON
         user_flows = user.flow_dict
         # generate all user events and flows for the users
         data, churn = user.generate_flows(user_flows)
         primary_shard_key_dict[shard_key]['churned'] = churn
         if data:
-            #check if a folder today exists, if not create it
-            event_folder_path_with_date = "{}{}/".format(event_folder_path, today_date.strftime("%Y-%m-%d"))
+            #check if a folder today_date exists, if not create it.
+            # We are subtractin gone day since this will run at midnight and generate events up till the day before
+            event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
             event_directory = os.path.dirname(event_folder_path_with_date)
             os.umask(0)
             if os.path.exists(event_directory):
                 with gzip.open('{}/user_{}_{}.gz'.format(event_directory,
                                                         shard_key,
-                                                        today_date.strftime("%Y-%m-%d")), 'w') as f:
+                                                         (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")), 'w') as f:
                     f.write(json.dumps(data).encode(errors='ignore'))
             else:
                 os.makedirs(event_directory)
                 with gzip.open('{}/user_{}_{}.gz'.format(event_directory,
                                                           shard_key,
-                                                          today_date.strftime("%Y-%m-%d")), 'w') as f:
+                                                         (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")), 'w') as f:
                     f.write(json.dumps(data).encode(errors='ignore'))
         progress_counter = progress_counter + 1
         loop_counter = loop_counter +1
@@ -70,8 +72,14 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today, event_
     ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
     # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
     for id in ids_to_remove:
-        print("user churned! - {} ".format(id))
         del primary_shard_key_dict[id]
+    #TODO make it so we can accept a lookup file
+    #create the lookup table
+    # lookup_table = Lookup_table(lookup_table_csv=lookup_table_file, user_list=primary_shard_key_dict )
+    # lookup_table_json = lookup_table.generate_lookup_table()
+    # with open("{}/lookup_table.json".format(config_path), 'w') as write_user_id_file:
+    #     write_user_id_file.write(json.dumps(lookup_table_json))
+
     # after all the ids have generated events write the remaining users to a file and save
     with open("{}{}.json".format(config_path, user_id_list_file_name), 'w') as write_user_id_file:
         write_user_id_file.write(json.dumps(primary_shard_key_dict))
@@ -135,14 +143,13 @@ def ask_to_specify_event_path(current_path):
 
 #start of app
 if __name__ == '__main__':
-    ##global values
+    #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
     today_date = datetime.datetime.now()
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
-    # event_folder_path = "{}/events/".format(current_path)
     if not os.path.exists(config_directory):
         number_of_original_users =  int(input("How many users would you like to generate to start? "))
         new_user_to_generate_per_period = ((number_of_original_users *.1)/30)
@@ -186,7 +193,6 @@ if __name__ == '__main__':
         event_dict = csv_to_dict(event_file)
         ## check to see if we have a list of the primary shard key, if not create one and save as a csv file
         my_file = Path("{}{}.json".format(config_path, user_id_list_file_name))
-
         if my_file.is_file():
             with open("{}{}.json".format(config_path, user_id_list_file_name), 'r') as read_user_id_file:
                 primary_shard_key_dict = json.loads(read_user_id_file.read())
@@ -198,11 +204,10 @@ if __name__ == '__main__':
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
                           initial_data_generation=False,
-                          today=today_date,
+                          today_date=today_date,
                           event_folder_path=event_folder_path,
                           user_flows_file=user_flows_file,
                           event_file=event_file)
-
         else:
             # create a dictionary of users where the key is the user id and store additional details about the user in another dict
             primary_shard_key_dict = dict()
@@ -218,7 +223,7 @@ if __name__ == '__main__':
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
                           initial_data_generation=True,
-                          today=today_date,
+                          today_date=today_date,
                           event_folder_path=event_folder_path,
                           user_flows_file=user_flows_file,
                           event_file=event_file)

@@ -40,15 +40,15 @@ class User(object):
         self.time = start_time
         event_list = list()
         while True:
-            if (self.time + datetime.timedelta(days=.5)) > self.today:
+            if (self.time + datetime.timedelta(hours=1)) > self.today:
                 break
         # loop through all of the user flows
             for keys, values in flows_obj.items():
                 # make sure we have not passed today's date
-                if (self.time + datetime.timedelta(days=.5)) < self.today:
+                if (self.time + datetime.timedelta(hours=1)) < self.today:
                     for event_in_flow in values:
                         # make sure we have not passed today's date
-                        if (self.time + datetime.timedelta(days=.5)) < self.today:
+                        if (self.time + datetime.timedelta(hours=1)) < self.today:
                             #     break
                             # random check to see if we change the session_id as well as the other non-primary ids
                             if (random.uniform(0, 1)) >= .8:
@@ -70,7 +70,7 @@ class User(object):
                                 # this will be totally random as to whether "good" or "bad" user do more events or not
                                 if random.uniform(0, 1) >= .5:
                                     for x in range(6):
-                                        if (self.time + datetime.timedelta(days=.5)) < self.today:
+                                        if (self.time + datetime.timedelta(hours=1)) < self.today:
                                             random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
                                             single_event = Event(event_name=random_event,
                                                                  primary_shard_key_name=self.primary_shard_key_name,
@@ -114,9 +114,9 @@ class User(object):
             if self.probability <= self.churn_threshold:
                 break
             # after we have run through a defined flow of events let's do a check to see if other random events are done. Good users should do this more often
-            if self.probability >= .6 and (self.time + datetime.timedelta(days=.5)) < self.today:
+            if self.probability >= .6 and (self.time + datetime.timedelta(hours=1)) < self.today:
                 for counter in range(10):
-                    if (self.time + datetime.timedelta(days=.5)) < self.today:
+                    if (self.time + datetime.timedelta(hours=1)) < self.today:
                         random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
                         single_event = Event(event_name=random_event,
                                              primary_shard_key_name=self.primary_shard_key_name,
