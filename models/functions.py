@@ -31,11 +31,11 @@ def increase_time(time, probability):
         interval = (60 * 10)
     if probability >= .6:
         time_increase = random.randrange(1, (60 * 60 * 1.5), interval)
-        time = time + datetime.timedelta(seconds=time_increase)
+        new_time = time + datetime.timedelta(seconds=time_increase)
     else:
         time_increase = random.randrange(1, (60 * 60 * 6), interval)
-        time = time + datetime.timedelta(seconds=time_increase)
-    return time
+        new_time = time + datetime.timedelta(seconds=time_increase)
+    return new_time
 
 def get_new_users(primary_shard_key_dict, number_of_users):
     for new_user in range(round(number_of_users)):
