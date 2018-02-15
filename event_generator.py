@@ -34,21 +34,31 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         # if this isn't the first time we are generating data we will let "last_date_run" be equal to the saved time in the file
         if initial_data_generation == True:
             start_date = start_date + datetime.timedelta(days=(random.randrange(1,80)))
+        # check to make sure we have a reset_churn_prob value, mostly a duck tape fix for backwards compatibility where data was already generated
+        if not shard_key_values['skip_days_counter']:
+            shard_key_values['skip_days_counter'] = 0
+            shard_key_values['churn_prob_reset_counter'] = 0
         # create the user
         user = User(primary_shard_key_value=shard_key,
                     last_date_run=start_date,
                     user_flows_file_location=user_flows_file,
                     event_dict_file_location=event_file,
                     user_probability=shard_key_values['user_probability'],
-                    today=today_date)
+                    today=today_date,
+                    skip_days_counter=shard_key_values['skip_days_counter'],
+                    churn_prob_reset_counter=shard_key_values['churn_prob_reset_counter'] )
         # format the flows from the csv file into usable JSON
         user_flows = user.flow_dict
         # generate all user events and flows for the users
-        data, churn = user.generate_flows(user_flows)
+        data, churn, shard_key_prob, shard_key_skip_days_counter, shard_key_churn_prob_reset_counter, last_event_time = user.generate_flows(user_flows)
         primary_shard_key_dict[shard_key]['churned'] = churn
+        primary_shard_key_dict[shard_key]['user_probability'] = shard_key_prob
+        primary_shard_key_dict[shard_key]['skip_days_counter'] = shard_key_skip_days_counter
+        primary_shard_key_dict[shard_key]['churn_prob_reset_counter'] = shard_key_churn_prob_reset_counter
+        primary_shard_key_dict[shard_key]['last_event_time'] = datetime.datetime.strftime(last_event_time,"%Y-%m-%d %H:%M:%S")
         if data:
             #check if a folder today_date exists, if not create it.
-            # We are subtractin gone day since this will run at midnight and generate events up till the day before
+            # We are subtracting one day since this will run at midnight and generate events up till the day before
             event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
             event_directory = os.path.dirname(event_folder_path_with_date)
             os.umask(0)
@@ -65,7 +75,7 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
                     f.write(json.dumps(data).encode(errors='ignore'))
         progress_counter = progress_counter + 1
         loop_counter = loop_counter +1
-        if progress_counter % ten_percent == 0:
+        if round(progress_counter % ten_percent) == 0:
             print("Progress: {}%".format(round((progress_counter/num_user),2)*100))
             loop_counter = 0
     # create a list of all ids that should now churn
@@ -79,6 +89,7 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
     # lookup_table_json = lookup_table.generate_lookup_table()
     # with open("{}/lookup_table.json".format(config_path), 'w') as write_user_id_file:
     #     write_user_id_file.write(json.dumps(lookup_table_json))
+
 
     # after all the ids have generated events write the remaining users to a file and save
     with open("{}{}.json".format(config_path, user_id_list_file_name), 'w') as write_user_id_file:
@@ -146,7 +157,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now()
+    today_date = datetime.datetime.now() - datetime.timedelta(days=0)
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
@@ -199,7 +210,8 @@ if __name__ == '__main__':
                 primary_shard_key_dict = primary_shard_key_dict
             # add some new users to the file - this is mostly so we can change metrics like retention and do "new user" analysis
             primary_shard_key_dict = get_new_users(primary_shard_key_dict=primary_shard_key_dict,
-                                                   number_of_users=new_user_to_generate_per_period)
+                                                   number_of_users=new_user_to_generate_per_period,
+                                                   event_start_time=last_date_run)
             print('script running!')
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
@@ -209,6 +221,8 @@ if __name__ == '__main__':
                           user_flows_file=user_flows_file,
                           event_file=event_file)
         else:
+            # set the "last run date" to be 3 months ago so we can back propogate some new data
+            last_date_run = datetime.datetime.now() - datetime.timedelta(days=90)
             # create a dictionary of users where the key is the user id and store additional details about the user in another dict
             primary_shard_key_dict = dict()
             for x in range(number_of_original_users):
@@ -217,8 +231,9 @@ if __name__ == '__main__':
                 primary_shard_key_dict[primary_shard_key] = dict()
                 primary_shard_key_dict[primary_shard_key]['user_probability'] = user_probability
                 primary_shard_key_dict[primary_shard_key]['churned'] = 'False'
-            # set the "last run date" to be 3 months ago so we can back propogate some new data
-            last_date_run = datetime.datetime.now() - datetime.timedelta(days=90)
+                primary_shard_key_dict[primary_shard_key]['skip_days_counter'] = 0
+                primary_shard_key_dict[primary_shard_key]['churn_prob_reset_counter'] = 0
+                primary_shard_key_dict[primary_shard_key]['last_event_time'] = datetime.datetime.strftime(last_date_run,"%Y-%m-%d %H:%M:%S")
             print('script running!')
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
