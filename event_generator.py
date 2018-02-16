@@ -35,7 +35,7 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         if initial_data_generation == True:
             start_date = start_date + datetime.timedelta(days=(random.randrange(1,80)))
         # check to make sure we have a reset_churn_prob value, mostly a duck tape fix for backwards compatibility where data was already generated
-        if not shard_key_values['skip_days_counter']:
+        if not shard_key_values.get('skip_days_counter'):
             shard_key_values['skip_days_counter'] = 0
             shard_key_values['churn_prob_reset_counter'] = 0
         # create the user
@@ -157,7 +157,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now() - datetime.timedelta(days=0)
+    today_date = datetime.datetime.now()
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
