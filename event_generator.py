@@ -24,6 +24,7 @@ user flows, and a lookup table of user attributes
 def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_table_file, events_folder_path):
     lookup_table_path = events_folder_path.replace('events/','lookup_table/')
     lookup_table_file_name = lookup_table_file.split("/")[-1]
+
     if newfile_or_append_to_file == "newfile":
         # create the lookup table directory
         lookup_table_directory = os.path.dirname(lookup_table_path)

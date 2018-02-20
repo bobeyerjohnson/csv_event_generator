@@ -166,10 +166,11 @@ class User(object):
             no_events_in_list = False
         else:
             no_events_in_list = True
-        # We need to check to see if the user has any events to reutrn and handle all possibilities of no events and churn
-        # return should be the list of event (or None) and churn as true or false
+        # do a check to see if we make the user churn or not. very bad users will churn every time
         if self.probability <= self.churn_threshold:
-            self.churn = True
+            # give user below the churn threshold a chance to stick around, but users should always churn
+            if self.probability <= random.uniform(.1,.9):
+                self.churn = True
             if no_events_in_list:
                 return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
             else:
