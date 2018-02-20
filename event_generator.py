@@ -1,3 +1,5 @@
+
+
 __author__ = 'bojohnson'
 
 from pathlib import Path
@@ -9,7 +11,8 @@ import gzip
 from models.user import User
 from models.functions import csv_to_dict, get_new_users
 import os
-from models.lookup_table import Lookup_table
+from models.lookup_table import Lookup_Table_Generator
+import csv
 
 
 '''
@@ -18,8 +21,49 @@ based various separate csv files containing events, event meta data,
 user flows, and a lookup table of user attributes
 '''
 
+def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_table_file, events_folder_path):
+    lookup_table_path = events_folder_path.replace('events/','lookup_table/')
+    if newfile_or_append_to_file == "newfile":
+        # create the lookup table directory
+        lookup_table_directory = os.path.dirname(lookup_table_path)
+        os.makedirs(lookup_table_directory)
+        # create the lookup table if this is the first time we are creating data
+        lookup_table = Lookup_Table_Generator(id_list=primary_shard_key_dict, lookup_file=lookup_table_file)
+        lookup_table_list = lookup_table.create_table()
+        # take lookup_table_list and write to to a csv file
+        with open("{}lookup_table.csv".format(lookup_table_path), 'w') as f:
+            fieldnames = lookup_table_list[0].keys()
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for dicts in lookup_table_list:
+                writer.writerow(dicts)
+    elif newfile_or_append_to_file == "append":
+        shard_key_ids_from_dict = primary_shard_key_dict.keys()
+        list_of_ids = list()
+        with open("{}lookup_table.csv".format(lookup_table_path), 'r') as csv_file:
+            reader = csv.DictReader(csv_file)
+            for row in reader:
+                list_of_ids.append(row['shard_key_id'])
+        ids_to_add = list(set(shard_key_ids_from_dict) - set(list_of_ids))
+        # create the lookup table if this is the first time we are creating data
+        lookup_table = Lookup_Table_Generator(id_list=ids_to_add, lookup_file=lookup_table_file)
+        lookup_table_list = lookup_table.create_table()
+        with open("{}lookup_table.csv".format(lookup_table_path), 'a') as f:
+            # take lookup_table_list and write to to a csv file
+            fieldnames = lookup_table_list[0].keys()
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for dict in lookup_table_list:
+                writer.writerow(dict)
+
 #TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
-def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file):
+def generate_data(all_ids,
+                  last_run_date,
+                  initial_data_generation,
+                  today_date,
+                  event_folder_path,
+                  user_flows_file, event_file,
+                  lookup_table_file):
     #get the number of users to understand progress and print to console
     num_user = len(all_ids)
     progress_counter =0
@@ -78,19 +122,26 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         if round(progress_counter % ten_percent) == 0:
             print("Progress: {}%".format(round((progress_counter/num_user),2)*100))
             loop_counter = 0
+
+    #TODO need to make it so that we keep all the old ids as well as add the new ids
+    # flow - if first run create table, it not the first run read in csv file, check for new users, append new user data
+
+    if initial_data_generation == True:
+        write_to_csv_file(newfile_or_append_to_file='newfile',
+                          lookup_table_file=lookup_table_file,
+                          primary_shard_key_dict=primary_shard_key_dict,
+                          events_folder_path=event_folder_path)
+    else:
+        write_to_csv_file(newfile_or_append_to_file='append',
+                          lookup_table_file=lookup_table_file,
+                          primary_shard_key_dict=primary_shard_key_dict,
+                          events_folder_path=event_folder_path)
+
     # create a list of all ids that should now churn
     ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
     # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
     for id in ids_to_remove:
         del primary_shard_key_dict[id]
-    #TODO make it so we can accept a lookup file
-    #create the lookup table
-    # lookup_table = Lookup_table(lookup_table_csv=lookup_table_file, user_list=primary_shard_key_dict )
-    # lookup_table_json = lookup_table.generate_lookup_table()
-    # with open("{}/lookup_table.json".format(config_path), 'w') as write_user_id_file:
-    #     write_user_id_file.write(json.dumps(lookup_table_json))
-
-
     # after all the ids have generated events write the remaining users to a file and save
     with open("{}{}.json".format(config_path, user_id_list_file_name), 'w') as write_user_id_file:
         write_user_id_file.write(json.dumps(primary_shard_key_dict))
@@ -124,10 +175,29 @@ def ask_for_flows_file():
         ask_for_flows_file()
     return user_flows_file
 
-def write_config_file(event_file, user_flows_file, config_path, event_folder_path, new_user_to_generate_per_period):
+def ask_for_lookup_table_file():
+    lookup_table_file = input(
+        "Please provide the Lookup Table Data csv file \n Ex:/mnt/tank/pool/filer2/demo_data/social_demo/user_lookup_table.csv \n File: ")
+    lookup_table_file = lookup_table_file.strip()
+    lookup_table_file_check = Path(lookup_table_file)
+    if not lookup_table_file_check.is_file():
+        print("That doesn't seem to be a file. Please double check the file path and submit again")
+        ask_for_lookup_table_file()
+    return lookup_table_file
+
+def ask_for_number_of_users():
+    number_of_original_users = int(input("How many users would you like to generate to start? "))
+    if type(number_of_original_users) != int:
+        print("That was not a number. Please enter a number greater than 0")
+        ask_for_number_of_users()
+    new_user_to_generate_per_period = ((number_of_original_users * .1) / 30)
+    return number_of_original_users, new_user_to_generate_per_period
+
+def write_config_file(event_file, user_flows_file, lookup_table_file, config_path, event_folder_path, new_user_to_generate_per_period):
     config_data = dict()
     config_data['event_file_path'] = event_file
     config_data['flows_file_path'] = user_flows_file
+    config_data['lookup_table_path'] = lookup_table_file
     config_data['event_folder_path'] = event_folder_path
     config_data['new_user_to_generate_per_period'] = new_user_to_generate_per_period
     with open("{}config.json".format(config_path), 'w') as config_file_writer:
@@ -162,15 +232,19 @@ if __name__ == '__main__':
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
     if not os.path.exists(config_directory):
-        number_of_original_users =  int(input("How many users would you like to generate to start? "))
-        new_user_to_generate_per_period = ((number_of_original_users *.1)/30)
+        number_of_original_users, new_user_to_generate_per_period = ask_for_number_of_users()
         event_file = ask_for_event_file()
         user_flows_file = ask_for_flows_file()
+        lookup_table_file = ask_for_lookup_table_file()
         event_folder_path = ask_to_specify_event_path(current_path=current_path)
         os.makedirs(config_directory)
         # write the config file which will just contain the file paths for the event and user flow files
-        write_config_file(event_file=event_file, user_flows_file=user_flows_file, config_path=config_path, event_folder_path=event_folder_path, new_user_to_generate_per_period=new_user_to_generate_per_period)
-        #create the top level events folder
+        write_config_file(event_file=event_file,
+                          user_flows_file=user_flows_file,
+                          lookup_table_file= lookup_table_file,
+                          config_path=config_path,
+                          event_folder_path=event_folder_path,
+                          new_user_to_generate_per_period=new_user_to_generate_per_period)
     else:
         # let's grab the the configuration details we need
         if os.path.getsize("{}config.json".format(config_path)) > 0:
@@ -178,15 +252,20 @@ if __name__ == '__main__':
                 config_file_data = json.loads(config_file_reader.read())
                 event_file = config_file_data['event_file_path']
                 user_flows_file = config_file_data['flows_file_path']
+                lookup_table_file = config_file_data['lookup_table_path']
                 event_folder_path = config_file_data['event_folder_path']
                 new_user_to_generate_per_period = config_file_data['new_user_to_generate_per_period']
         else:
-            number_of_original_users = int(input("How many users would you like to generate to start? "))
-            new_user_to_generate_per_period = ((number_of_original_users * .1) / 30)
+            number_of_original_users, new_user_to_generate_per_period = ask_for_number_of_users()
             event_file = ask_for_event_file()
             user_flows_file = ask_for_flows_file()
+            lookup_table_file = ask_for_lookup_table_file()
             event_folder_path = ask_to_specify_event_path(current_path=current_path)
-            write_config_file(event_file=event_file, user_flows_file=user_flows_file, config_path=config_path, event_folder_path=event_folder_path)
+            write_config_file(event_file=event_file,
+                              user_flows_file=user_flows_file,
+                              lookup_table_file= lookup_table_file,
+                              config_path=config_path,
+                              event_folder_path=event_folder_path)
     # get the last time the script was run from the data file
     date_file_check = Path("{}{}".format(config_path, last_date_run_file))
     if date_file_check.is_file():
@@ -219,7 +298,8 @@ if __name__ == '__main__':
                           today_date=today_date,
                           event_folder_path=event_folder_path,
                           user_flows_file=user_flows_file,
-                          event_file=event_file)
+                          event_file=event_file,
+                          lookup_table_file= lookup_table_file)
         else:
             # set the "last run date" to be 3 months ago so we can back propogate some new data
             last_date_run = datetime.datetime.now() - datetime.timedelta(days=90)
@@ -241,5 +321,6 @@ if __name__ == '__main__':
                           today_date=today_date,
                           event_folder_path=event_folder_path,
                           user_flows_file=user_flows_file,
-                          event_file=event_file)
-    #TODO check to see if lookup table is created, if not create it and write to file as JSON
+                          event_file=event_file,
+                          lookup_table_file=lookup_table_file)
+
