@@ -148,8 +148,10 @@ venv.bak/
 # specific files to ignore
 *user_id_list*
 *last_date_script_was_run*
+lookup_table.csv
 
 # folders to ignore
 config/
 events/
 files/
+lookup_table/
