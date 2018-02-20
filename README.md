@@ -11,6 +11,7 @@ Then follow the promts to provide the needed files and dir locations.
    2 csv files:
 1) Events File - This contains all the events and possible event properites that will be used for data generation
 2) Flows File - "Flows" referers to the "flows" or "path" that events will occur. This gives structure to the order in which events will be performed and is fundemental to creating trends and behaviors in the data
+3) Lookup Table File - csv file that takes in values and assigns a single value for each property per Id
 
    Example template for both of thes files can be found [here](https://docs.google.com/spreadsheets/d/1b0LrIq6rxfB5uJaZGDOg9VxvtkabRAym2mgwMC9T0ME/edit?usp=sharing)
    
@@ -30,9 +31,3 @@ Event property value frequency is determined by their position within their resp
 * 4 or More Property Values:
   - Whenever 4 or more property values are included the script will divide the list into quartiles and values that fall into the top quartile (first x number of rows in the csv file) will appear the most, with fequency of property values decreasing as we move into the second of the fourth quartiles and so on
 
-## Potential future updates
-1) Better control of non-primary shardkeys
-2) Creation of a "user table"
-3) Better "churn" conditions for shardkeys
-3) Speed improvements
-4) Ganular control of what properties appear on what events
