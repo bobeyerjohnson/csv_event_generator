@@ -51,7 +51,7 @@ def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_
         # create the lookup table if this is the first time we are creating data
         lookup_table = Lookup_Table_Generator(id_list=ids_to_add, lookup_file=lookup_table_file)
         lookup_table_list = lookup_table.create_table()
-        with open("{}lookup_table.csv".format(lookup_table_path), 'a') as f:
+        with open("{}{}".format(lookup_table_path,lookup_table_file_name), 'a') as f:
             # take lookup_table_list and write to to a csv file
             fieldnames = lookup_table_list[0].keys()
             writer = csv.DictWriter(f, fieldnames=fieldnames)
