@@ -23,6 +23,7 @@ user flows, and a lookup table of user attributes
 
 def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_table_file, events_folder_path):
     lookup_table_path = events_folder_path.replace('events/','lookup_table/')
+    lookup_table_file_name = lookup_table_file.split("/")[-1]
     if newfile_or_append_to_file == "newfile":
         # create the lookup table directory
         lookup_table_directory = os.path.dirname(lookup_table_path)
@@ -31,7 +32,8 @@ def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_
         lookup_table = Lookup_Table_Generator(id_list=primary_shard_key_dict, lookup_file=lookup_table_file)
         lookup_table_list = lookup_table.create_table()
         # take lookup_table_list and write to to a csv file
-        with open("{}lookup_table.csv".format(lookup_table_path), 'w') as f:
+
+        with open("{}{}".format(lookup_table_path, lookup_table_file_name), 'w') as f:
             fieldnames = lookup_table_list[0].keys()
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
@@ -40,7 +42,7 @@ def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_
     elif newfile_or_append_to_file == "append":
         shard_key_ids_from_dict = primary_shard_key_dict.keys()
         list_of_ids = list()
-        with open("{}lookup_table.csv".format(lookup_table_path), 'r') as csv_file:
+        with open("{}{}".format(lookup_table_path,lookup_table_file_name), 'r') as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
                 list_of_ids.append(row['shard_key_id'])
