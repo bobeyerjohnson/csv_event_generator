@@ -34,7 +34,7 @@ class User(object):
             self.shard_key_dict[single_additional_shard_key] = uuid.uuid4()
         # delete the shard keys from the event and property dic so we we can handle separately from events/flow creation later on in the even class
         del self.event_dict['shardkeys']
-        self.churn_threshold = .6
+        self.churn_threshold = .7
         self.skip_days_counter = skip_days_counter
         self.churn_prob_reset_counter = churn_prob_reset_counter
         self.skip_days_counter_reset_value = 4
@@ -169,7 +169,7 @@ class User(object):
         # do a check to see if we make the user churn or not. very bad users will churn every time
         if self.probability <= self.churn_threshold:
             # give user below the churn threshold a chance to stick around, but users should always churn
-            if self.probability <= random.uniform(.1,.9):
+            if self.probability <= random.uniform(0.2,0.9):
                 self.churn = True
             if no_events_in_list:
                 return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
