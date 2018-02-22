@@ -55,7 +55,6 @@ def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_
             # take lookup_table_list and write to to a csv file
             fieldnames = lookup_table_list[0].keys()
             writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
             for dict in lookup_table_list:
                 writer.writerow(dict)
 
@@ -230,7 +229,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now()
+    today_date = datetime.datetime.now() + datetime.timedelta(days=2)
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
