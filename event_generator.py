@@ -19,7 +19,9 @@ import csv
 this is a small app the creates a user and then generates events for them
 based various separate csv files containing events, event meta data, 
 user flows, and a lookup table of user attributes
+
 '''
+#TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
 
 def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_table_file, events_folder_path):
     lookup_table_path = events_folder_path.replace('events/','lookup_table/')
@@ -58,14 +60,7 @@ def write_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_
             for dict in lookup_table_list:
                 writer.writerow(dict)
 
-#TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
-def generate_data(all_ids,
-                  last_run_date,
-                  initial_data_generation,
-                  today_date,
-                  event_folder_path,
-                  user_flows_file, event_file,
-                  lookup_table_file):
+def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file, lookup_table_file):
     #get the number of users to understand progress and print to console
     num_user = len(all_ids)
     progress_counter =0
@@ -229,7 +224,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now() + datetime.timedelta(days=2)
+    today_date = datetime.datetime.now()
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
