@@ -100,19 +100,19 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         if data:
             #check if a folder today_date exists, if not create it.
             # We are subtracting one day since this will run at midnight and generate events up till the day before
-            event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d"))
+            event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
             event_directory = os.path.dirname(event_folder_path_with_date)
             os.umask(0)
             if os.path.exists(event_directory):
                 with gzip.open('{}/user_{}_{}.gz'.format(event_directory,
                                                         shard_key,
-                                                         (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")), 'w') as f:
+                                                         (today_date).strftime("%Y-%m-%d")), 'w') as f:
                     f.write(json.dumps(data).encode(errors='ignore'))
             else:
                 os.makedirs(event_directory)
                 with gzip.open('{}/user_{}_{}.gz'.format(event_directory,
                                                           shard_key,
-                                                         (today_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")), 'w') as f:
+                                                         (today_date).strftime("%Y-%m-%d")), 'w') as f:
                     f.write(json.dumps(data).encode(errors='ignore'))
         progress_counter = progress_counter + 1
         loop_counter = loop_counter +1
@@ -120,7 +120,6 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
             print("Progress: {}%".format(round((progress_counter/num_user),2)*100))
             loop_counter = 0
 
-    #TODO need to make it so that we keep all the old ids as well as add the new ids
     # flow - if first run create table, it not the first run read in csv file, check for new users, append new user data
 
     if initial_data_generation == True:
