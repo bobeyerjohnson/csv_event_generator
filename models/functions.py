@@ -79,7 +79,7 @@ def increase_time_event_time(time, probability, skip_days_counter_reset_value, s
         new_churn_prob_reset_counter = churn_prob_reset_counter + 1
         # see how many times we have reset skip_days_counter to zero, if it's been more than 8 times, assign a new churn probability
         # this is so that "good" user don't last forever
-        if new_churn_prob_reset_counter >= 8:
+        if new_churn_prob_reset_counter >= 5:
             new_churn_prob_reset_counter = 0
             #reset the shard key probability
             new_prob = random.uniform(0,1)
