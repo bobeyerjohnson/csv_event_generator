@@ -1,4 +1,4 @@
-
+import shutil
 
 __author__ = 'bojohnson'
 
@@ -141,11 +141,10 @@ def gzip_existing_file(event_directory_path,output_file_name, json_file):
     # close the open file so we can swtich to read mode
     json_file.close()
     # read in json file and convert to gzip
-    with open('{}/{}.json'.format(event_directory_path, output_file_name),'rb') as original_file:
-        with gzip.open('{}/{}.gz'.format(event_directory_path, output_file_name),'wb') as zipped_file:
-            zipped_file.writelines(original_file)
+    with open('{}/{}'.format(event_directory_path, output_file_name),'rb') as original_file, gzip.open('{}/{}.gz'.format(event_directory_path, output_file_name),'wb') as zipped_file:
+        shutil.copyfileobj(original_file, zipped_file)
     # delete json file
-    os.unlink('{}/{}.json'.format(event_directory_path, output_file_name))
+    os.unlink('{}/{}'.format(event_directory_path, output_file_name))
 
 def write_gzip_file(events,event_folder_path, today_date):
     # check if a folder today_date exists, if not create it.
@@ -189,8 +188,8 @@ def write_to_json_file(events,event_folder_path,file_name, today_date):
             f.write(json.dumps(events).encode(errors='ignore'))
     return event_directory
 
-def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file, lookup_table_file):
-    output_file_name = today_date.strftime("%Y-%m-%d%H%M%S")
+def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file_path, lookup_table_file):
+    event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
     primary_shard_key_dict = all_ids
     combined_data = list()
     # get the number of users to understand progress and print to console, plus make sure we write final events to a file
@@ -209,61 +208,102 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         if not shard_key_values.get('skip_days_counter'):
             shard_key_values['skip_days_counter'] = 0
             shard_key_values['churn_prob_reset_counter'] = 0
-        # create the user
+        # check to see if the folder and file we want to write to exists or not
+        event_dir_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
+        full_event_directory_path_obj = os.path.dirname(event_dir_path_with_date)
+        # if the event folder does not exists let's create it
+        if not os.path.exists(event_dir_path_with_date):
+            # set permissions on folder
+            os.umask(0)
+            # create the directory
+            os.makedirs(full_event_directory_path_obj)
+            # make the first event file since we know it cannot exist as the dir does not exist yet
+            events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
+            # write the initial opening bracket for proper JSON formatting
+            events_file.write('['.encode(errors='ignore'))
+        #check if file exists, and if not open it. this is for when we run the script after the first run to make sure we have a file to write to when the dir exists from a previous run
+        event_file_check = Path("{}{}.json".format(full_event_directory_path_obj, event_file_name))
+        if not event_file_check.is_file():
+            events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
+        # check to see we have a file already open that we are writing to. if it is closed, open a new file
+        if events_file.closed:
+            #open the file we want to write events to
+            events_file = open('{}/{}'.format(full_event_directory_path_obj,event_file_name), 'wb')
+            events_file.write('['.encode(errors='ignore'))
+        # create the shard key
         user = User(primary_shard_key_value=shard_key,
                     last_date_run=start_date,
                     user_flows_file_location=user_flows_file,
-                    event_dict_file_location=event_file,
+                    event_dict_file_location=event_file_path,
                     user_probability=shard_key_values['user_probability'],
                     today=today_date,
                     skip_days_counter=shard_key_values['skip_days_counter'],
-                    churn_prob_reset_counter=shard_key_values['churn_prob_reset_counter'] )
+                    churn_prob_reset_counter=shard_key_values['churn_prob_reset_counter'],
+                    open_file=events_file)
         # format the flows from the csv file into usable JSON
         user_flows = user.flow_dict
-        # generate all user events and flows for the users
-        data, churn, shard_key_prob, shard_key_skip_days_counter, shard_key_churn_prob_reset_counter, last_event_time = user.generate_flows(user_flows)
+        # generate all shard key events and flows for the users, return needed shard key states to be stored in shard key dict
+        churn, shard_key_prob, shard_key_skip_days_counter, shard_key_churn_prob_reset_counter, last_event_time = user.generate_flows(user_flows)
         primary_shard_key_dict[shard_key]['churned'] = churn
         primary_shard_key_dict[shard_key]['user_probability'] = shard_key_prob
         primary_shard_key_dict[shard_key]['skip_days_counter'] = shard_key_skip_days_counter
         primary_shard_key_dict[shard_key]['churn_prob_reset_counter'] = shard_key_churn_prob_reset_counter
         primary_shard_key_dict[shard_key]['last_event_time'] = datetime.datetime.strftime(last_event_time,"%Y-%m-%d %H:%M:%S")
-        if data:
-            # as new events come in per shard key write to a file
-            # once the file is 1GB compress file and create a new file for the next set of events to be written to
-            # store where the event folder is locatd
-            event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
-            event_directory_path = os.path.dirname(event_folder_path_with_date)
-            # if the event folder exists append to open json file
-            if os.path.exists(event_directory_path):
-                # if the json file exist keep writing into the file, if it does not create a new one
-                event_file_check = Path('{}/{}.json'.format(event_directory_path, output_file_name))
-                if event_file_check.is_file():
-                    # add to the file if it is open
-                    append_to_open_json_file(open_json_file=open_json_file, events=data)
-                else:
-                    # create a new json file
-                    open_json_file = create_write_json_file(events=data, event_directory=event_directory_path,
-                                                            file_name=output_file_name)
-            # if the folder does not exist create the folder, and write a new file
-            else:
-                #set permissions on folder
-                os.umask(0)
-                # create the directory
-                os.makedirs(event_directory_path)
-                # write the first lines of the file and return the file as open so we don't have to continually open and close the file
-                open_json_file = create_write_json_file(events=data,event_directory=event_directory_path, file_name=output_file_name)
-            #event_directory_path, json_file = write_to_json_file(events=data,event_folder_path=event_folder_path,file_name=output_file_name, today_date=today_date)
-            # store file size of non-compressed file
-            file_size = os.path.getsize('{}/{}.json'.format(event_directory_path, output_file_name))
-            # if we are on our last shard key make sure to take existing file and compress
-            if progress_counter == (num_user - 1):
-                # zip the current json file for compression
-                gzip_existing_file(event_directory_path=event_directory_path, output_file_name=output_file_name, json_file=open_json_file)
-            elif file_size > 500000000:
-                #zip the current json file for compression
-                gzip_existing_file(event_directory_path=event_directory_path,output_file_name=output_file_name, json_file=open_json_file)
-                #reset the file name so we can create a new file on the next pass
-                output_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
+        # check the size of the currently open file to see if we need to close and zip it
+        # open file so we can read in stats
+        event_file_read_mode = open('{}/{}'.format(full_event_directory_path_obj,event_file_name), 'rb')
+        file_size = os.path.getsize('{}/{}'.format(full_event_directory_path_obj, event_file_name))
+        #file_size = os.fstat(event_file_read_mode.fileno()).st_size
+        event_file_read_mode.close()
+        # check to see if this is the last user, if so zip the currently open file
+        if progress_counter == (num_user - 1):
+            # zip the current json file for compression
+            gzip_existing_file(event_directory_path=full_event_directory_path_obj, output_file_name=event_file_name,
+                               json_file=events_file)
+        elif file_size > 500000000:
+            # zip the current json file for compression
+            gzip_existing_file(event_directory_path=full_event_directory_path_obj, output_file_name=event_file_name,
+                               json_file=events_file)
+            # reset the file name so we can create a new file on the next pass
+            event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
+        #TODO - cut from here
+        # if data:
+        #     # as new events come in per shard key write to a file
+        #     # once the file is 1GB compress file and create a new file for the next set of events to be written to
+        #     # store where the event folder is locatd
+        #     event_dir_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
+        #     full_event_directory_path_obj = os.path.dirname(event_dir_path_with_date)
+        #     # if the event folder exists append to open json file
+        #     if os.path.exists(full_event_directory_path_obj):
+        #         # if the json file exist keep writing into the file, if it does not create a new one
+        #         event_file_check = Path('{}/{}.json'.format(full_event_directory_path_obj, event_file_name))
+        #         if event_file_check.is_file():
+        #             # add to the file if it is open
+        #             append_to_open_json_file(open_json_file=open_json_file, events=data)
+        #         else:
+        #             # create a new json file
+        #             open_json_file = create_write_json_file(events=data, event_directory=full_event_directory_path_obj,
+        #                                                     file_name=event_file_name)
+        #     # if the folder does not exist create the folder, and write a new file
+        #     else:
+        #         #set permissions on folder
+        #         os.umask(0)
+        #         # create the directory
+        #         os.makedirs(full_event_directory_path_obj)
+        #         # write the first lines of the file and return the file as open so we don't have to continually open and close the file
+        #         open_json_file = create_write_json_file(events=data,event_directory=full_event_directory_path_obj, file_name=event_file_name)
+        #     #full_event_directory_path_obj, json_file = write_to_json_file(events=data,event_folder_path=event_folder_path,file_name=event_file_name, today_date=today_date)
+        #     # store file size of non-compressed file
+        #     file_size = os.path.getsize('{}/{}.json'.format(full_event_directory_path_obj, event_file_name))
+        #     # if we are on our last shard key make sure to take existing file and compress
+        #     if progress_counter == (num_user - 1):
+        #         # zip the current json file for compression
+        #         gzip_existing_file(event_directory_path=full_event_directory_path_obj, output_file_name=event_file_name, json_file=open_json_file)
+        #     elif file_size > 500000000:
+        #         #zip the current json file for compression
+        #         gzip_existing_file(event_directory_path=full_event_directory_path_obj,output_file_name=event_file_name, json_file=open_json_file)
+        #         #reset the file name so we can create a new file on the next pass
+        #         event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
         progress_counter = progress_counter + 1
         # make sure that we write the last bits of data if combined_data is less than 1 GB
         if round(progress_counter % ten_percent) == 0:
@@ -298,7 +338,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now() - datetime.timedelta(days=7)
+    today_date = datetime.datetime.now()
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
@@ -373,7 +413,7 @@ if __name__ == '__main__':
                           today_date=today_date,
                           event_folder_path=event_folder_path,
                           user_flows_file=user_flows_file,
-                          event_file=event_file,
+                          event_file_path=event_file,
                           lookup_table_file= lookup_table_file)
         else:
             # set the "last run date" to be 3 months ago so we can back propogate some new data
@@ -396,6 +436,6 @@ if __name__ == '__main__':
                           today_date=today_date,
                           event_folder_path=event_folder_path,
                           user_flows_file=user_flows_file,
-                          event_file=event_file,
+                          event_file_path=event_file,
                           lookup_table_file=lookup_table_file)
 
