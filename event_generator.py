@@ -221,13 +221,15 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
             events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
             # write the initial opening bracket for proper JSON formatting
             events_file.write('['.encode(errors='ignore'))
-        #check if file exists, and if not open it. this is for when we run the script after the first run to make sure we have a file to write to when the dir exists from a previous run
-        event_file_check = Path("{}{}.json".format(full_event_directory_path_obj, event_file_name))
-        if not event_file_check.is_file():
-            events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
+        # #check if file exists, and if not open it. this is for when we run the script after the first run to make sure we have a file to write to when the dir exists from a previous run
+        # event_file_check = Path("{}{}".format(full_event_directory_path_obj, event_file_name))
+        # if not event_file_check.is_file():
+        #     events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
+        #     events_file.write('['.encode(errors='ignore'))
         # check to see we have a file already open that we are writing to. if it is closed, open a new file
         if events_file.closed:
             #open the file we want to write events to
+            event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
             events_file = open('{}/{}'.format(full_event_directory_path_obj,event_file_name), 'wb')
             events_file.write('['.encode(errors='ignore'))
         # create the shard key
@@ -251,10 +253,8 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         primary_shard_key_dict[shard_key]['last_event_time'] = datetime.datetime.strftime(last_event_time,"%Y-%m-%d %H:%M:%S")
         # check the size of the currently open file to see if we need to close and zip it
         # open file so we can read in stats
-        event_file_read_mode = open('{}/{}'.format(full_event_directory_path_obj,event_file_name), 'rb')
         file_size = os.path.getsize('{}/{}'.format(full_event_directory_path_obj, event_file_name))
         #file_size = os.fstat(event_file_read_mode.fileno()).st_size
-        event_file_read_mode.close()
         # check to see if this is the last user, if so zip the currently open file
         if progress_counter == (num_user - 1):
             # zip the current json file for compression
