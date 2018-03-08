@@ -13,7 +13,6 @@ from models.functions import csv_to_dict, get_new_users
 import os
 from models.lookup_table import Lookup_Table_Generator
 import csv
-import sys
 
 
 '''
@@ -221,18 +220,17 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
             events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
             # write the initial opening bracket for proper JSON formatting
             events_file.write('['.encode(errors='ignore'))
-        # #check if file exists, and if not open it. this is for when we run the script after the first run to make sure we have a file to write to when the dir exists from a previous run
-        # event_file_check = Path("{}{}".format(full_event_directory_path_obj, event_file_name))
-        # if not event_file_check.is_file():
-        #     events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
-        #     events_file.write('['.encode(errors='ignore'))
-        # check to see we have a file already open that we are writing to. if it is closed, open a new file
-        if events_file.closed:
-            #open the file we want to write events to
-            event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
-            events_file = open('{}/{}'.format(full_event_directory_path_obj,event_file_name), 'wb')
+        #check if file exists, and if not open it. this is for when we run the script after the first run to make sure we have a file to write to when the dir exists from a previous run
+        try:
+            if events_file.closed:
+                # if events_file.closed:
+                # open the file we want to write events to
+                event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
+                events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
+                events_file.write('['.encode(errors='ignore'))
+        except UnboundLocalError:
+            events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
             events_file.write('['.encode(errors='ignore'))
-        # create the shard key
         user = User(primary_shard_key_value=shard_key,
                     last_date_run=start_date,
                     user_flows_file_location=user_flows_file,
@@ -254,7 +252,6 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         # check the size of the currently open file to see if we need to close and zip it
         # open file so we can read in stats
         file_size = os.path.getsize('{}/{}'.format(full_event_directory_path_obj, event_file_name))
-        #file_size = os.fstat(event_file_read_mode.fileno()).st_size
         # check to see if this is the last user, if so zip the currently open file
         if progress_counter == (num_user - 1):
             # zip the current json file for compression
