@@ -1,4 +1,5 @@
 import csv
+import json
 import random
 import uuid
 from models.event import Event
@@ -15,7 +16,7 @@ so this might not happen
 
 class User(object):
 
-    def __init__(self, primary_shard_key_value, last_date_run, user_flows_file_location, event_dict_file_location, user_probability, today, skip_days_counter, churn_prob_reset_counter):
+    def __init__(self, primary_shard_key_value, last_date_run, user_flows_file_location, event_dict_file_location, user_probability, today, skip_days_counter, churn_prob_reset_counter, open_file):
         self.primary_shard_key_value = primary_shard_key_value
         self.user_flows_file_location = user_flows_file_location
         self.probability = user_probability
@@ -23,7 +24,8 @@ class User(object):
         self.time = last_date_run
         self.today = today
         self.churn = False
-        self. session_id = uuid.uuid4()
+        self.session_id = uuid.uuid4()
+        self.open_file = open_file
         self.additional_shard_keys_list = self.event_dict['shardkeys']
         self.primary_shard_key_name = self.additional_shard_keys_list[0]
         #remove session_id from shard key list if it is present so we can have more control of session_id creation and deletion within user flows
@@ -69,7 +71,9 @@ class User(object):
                                                      session_id=self.session_id,
                                                      shard_key_dict=self.shard_key_dict)
                                 event = single_event.generate_event()
-                                event_list.append(event)
+                                self.open_file.write(json.dumps(event).encode())
+                                self.open_file.write(','.encode())
+                                #event_list.append(event)
                                 ## increase the time stamp so we move forward in time
                                 self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
                                     time=self.time,
@@ -90,7 +94,10 @@ class User(object):
                                                                  session_id=self.session_id,
                                                                  shard_key_dict=self.shard_key_dict)
                                             event = single_event.generate_event()
-                                            event_list.append(event)
+                                            self.open_file.write(json.dumps(event).encode())
+                                            self.open_file.write(','.encode())
+
+                                            #event_list.append(event)
                                             ## increase the time stamp so we move forward in time
                                             self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(time=self.time,
                                                                                                                                                           probability=self.probability,
@@ -113,7 +120,10 @@ class User(object):
                                                              session_id=self.session_id,
                                                              shard_key_dict=self.shard_key_dict)
                                         event = single_event.generate_event()
-                                        event_list.append(event)
+                                        self.open_file.write(json.dumps(event).encode())
+                                        self.open_file.write(','.encode())
+
+                                        #event_list.append(event)
                                         self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
                                             time=self.time,
                                             probability=self.probability,
@@ -144,7 +154,10 @@ class User(object):
                                              session_id=self.session_id,
                                              shard_key_dict=self.shard_key_dict)
                         event = single_event.generate_event()
-                        event_list.append(event)
+                        self.open_file.write(json.dumps(event).encode())
+                        self.open_file.write(','.encode())
+
+                        #event_list.append(event)
                         ## increase the time stamp so we move forward in time
                         self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
                             time=self.time,
@@ -154,31 +167,33 @@ class User(object):
                             skip_days_counter_reset_value=self.skip_days_counter_reset_value)
                     else:
                         break
-        if len(event_list) == 0:
-            return None
-        else:
-            return event_list
+        #return self.open_file
+        # if len(event_list) == 0:
+        #     return None
+        # else:
+        #     return event_list
 
     def generate_flows(self, flows_obj):
-        final_list_of_events = self.generate_events(flows_obj=flows_obj, start_time=self.time)
+        self.generate_events(flows_obj=flows_obj, start_time=self.time)
         # if we return none for the user list set make it so no_events_in_list is True
-        if final_list_of_events:
-            no_events_in_list = False
-        else:
-            no_events_in_list = True
+        # if final_list_of_events:
+        #     no_events_in_list = False
+        # else:
+        #     no_events_in_list = True
         # do a check to see if we make the user churn or not. very bad users will churn every time
         if self.probability <= self.churn_threshold:
             # give user below the churn threshold a chance to stick around, but users should always churn
             if self.probability <= random.uniform(0.2,0.9):
                 self.churn = True
-            if no_events_in_list:
-                return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
-            else:
-                return final_list_of_events, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
-        elif no_events_in_list:
-            return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
-        elif not no_events_in_list:
-            return final_list_of_events, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
+            # if no_events_in_list:
+            #     return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
+        return self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
+        #     else:
+        #         return open_event_file, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
+        # # elif no_events_in_list:
+        # #     return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
+        # elif not no_events_in_list:
+        #     return final_list_of_events, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
 
     # property to properly format the csv file of the event flows
     @property
