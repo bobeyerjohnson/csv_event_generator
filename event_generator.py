@@ -266,44 +266,6 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
                                json_file=events_file)
             # reset the file name so we can create a new file on the next pass
             event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
-        #TODO - cut from here
-        # if data:
-        #     # as new events come in per shard key write to a file
-        #     # once the file is 1GB compress file and create a new file for the next set of events to be written to
-        #     # store where the event folder is locatd
-        #     event_dir_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
-        #     full_event_directory_path_obj = os.path.dirname(event_dir_path_with_date)
-        #     # if the event folder exists append to open json file
-        #     if os.path.exists(full_event_directory_path_obj):
-        #         # if the json file exist keep writing into the file, if it does not create a new one
-        #         event_file_check = Path('{}/{}.json'.format(full_event_directory_path_obj, event_file_name))
-        #         if event_file_check.is_file():
-        #             # add to the file if it is open
-        #             append_to_open_json_file(open_json_file=open_json_file, events=data)
-        #         else:
-        #             # create a new json file
-        #             open_json_file = create_write_json_file(events=data, event_directory=full_event_directory_path_obj,
-        #                                                     file_name=event_file_name)
-        #     # if the folder does not exist create the folder, and write a new file
-        #     else:
-        #         #set permissions on folder
-        #         os.umask(0)
-        #         # create the directory
-        #         os.makedirs(full_event_directory_path_obj)
-        #         # write the first lines of the file and return the file as open so we don't have to continually open and close the file
-        #         open_json_file = create_write_json_file(events=data,event_directory=full_event_directory_path_obj, file_name=event_file_name)
-        #     #full_event_directory_path_obj, json_file = write_to_json_file(events=data,event_folder_path=event_folder_path,file_name=event_file_name, today_date=today_date)
-        #     # store file size of non-compressed file
-        #     file_size = os.path.getsize('{}/{}.json'.format(full_event_directory_path_obj, event_file_name))
-        #     # if we are on our last shard key make sure to take existing file and compress
-        #     if progress_counter == (num_user - 1):
-        #         # zip the current json file for compression
-        #         gzip_existing_file(event_directory_path=full_event_directory_path_obj, output_file_name=event_file_name, json_file=open_json_file)
-        #     elif file_size > 500000000:
-        #         #zip the current json file for compression
-        #         gzip_existing_file(event_directory_path=full_event_directory_path_obj,output_file_name=event_file_name, json_file=open_json_file)
-        #         #reset the file name so we can create a new file on the next pass
-        #         event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
         progress_counter = progress_counter + 1
         # make sure that we write the last bits of data if combined_data is less than 1 GB
         if round(progress_counter % ten_percent) == 0:
@@ -338,19 +300,15 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now()
+    today_date = datetime.datetime.now() + datetime.timedelta(days=5)
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
     if not os.path.exists(config_directory):
         number_of_original_users, new_user_to_generate_per_period = ask_for_number_of_users()
-        #TODO remove after testing
-        event_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-Events.csv'
-        user_flows_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-Flows.csv'
-        lookup_table_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-lookup_table.csv'
-        # event_file = ask_for_event_file()
-        # user_flows_file = ask_for_flows_file()
-        # lookup_table_file = ask_for_lookup_table_file()
+        event_file = ask_for_event_file()
+        user_flows_file = ask_for_flows_file()
+        lookup_table_file = ask_for_lookup_table_file()
         event_folder_path = ask_to_specify_event_path(current_path=current_path)
         os.makedirs(config_directory)
         # write the config file which will just contain the file paths for the event and user flow files
