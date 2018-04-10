@@ -175,7 +175,10 @@ def gzip_existing_file(event_directory_path,output_file_name, json_file):
     with open('{}/{}'.format(event_directory_path, output_file_name),'rb') as original_file, gzip.open('{}/{}.gz'.format(event_directory_path, output_file_name),'wb') as zipped_file:
         shutil.copyfileobj(original_file, zipped_file)
     # delete json file
-    os.unlink('{}/{}'.format(event_directory_path, output_file_name))
+    try:
+        os.unlink('{}/{}'.format(event_directory_path, output_file_name))
+    except Exception:
+        pass
 
 def write_gzip_file(events,event_folder_path, today_date):
     # check if a folder today_date exists, if not create it.
