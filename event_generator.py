@@ -15,7 +15,7 @@ from models.lookup_table import Lookup_Table_Generator
 import csv
 import time
 import shutil
-import psutil
+
 
 
 '''
