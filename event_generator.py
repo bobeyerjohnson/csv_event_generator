@@ -26,16 +26,25 @@ user flows, and a lookup table of user attributes
 '''
 #TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
 
-def has_handle(fpath):
-    for proc in psutil.process_iter():
+def file_is_locked(filepath):
+    """Checks if a file is locked by opening it in append mode.
+    If no exception thrown, then the file is not locked.
+    """
+    locked = None
+    file_object = None
+    if os.path.exists(filepath):
         try:
-            for item in proc.open_files():
-                if fpath == item.path:
-                    return True
-        except Exception:
-            pass
-
-    return False
+            buffer_size = 32
+            # Opening file in append mode and read the first 8 characters.
+            file_object = open(filepath, 'a', buffer_size)
+            if file_object:
+                locked = False
+        except IOError:
+            locked = True
+        finally:
+            if file_object:
+                file_object.close()
+    return locked
 
 def write_lookup_to_csv_file(primary_shard_key_dict, lookup_table_file, events_folder_path):
     lookup_table_path = events_folder_path.replace('events/','lookup_table/')
@@ -45,7 +54,7 @@ def write_lookup_to_csv_file(primary_shard_key_dict, lookup_table_file, events_f
     # see if the look table file exists
     if os.path.isfile(lookup_table_full_file_path):
         # if it does make sure something else isn't writing to it
-        response = has_handle(lookup_table_full_file_path)
+        response = file_is_locked(lookup_table_full_file_path)
         # if another program has the file open wait 60 seconds and try again
         if response:
             time.sleep(60)
@@ -320,7 +329,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now() + datetime.timedelta(days=35)
+    today_date = datetime.datetime.now()
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
