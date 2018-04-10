@@ -1,4 +1,4 @@
-import shutil
+
 
 __author__ = 'bojohnson'
 
@@ -13,6 +13,9 @@ from models.functions import csv_to_dict, get_new_users
 import os
 from models.lookup_table import Lookup_Table_Generator
 import csv
+import time
+import shutil
+import psutil
 
 
 '''
@@ -23,43 +26,63 @@ user flows, and a lookup table of user attributes
 '''
 #TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
 
-def write_lookup_to_csv_file(newfile_or_append_to_file, primary_shard_key_dict, lookup_table_file, events_folder_path):
+def has_handle(fpath):
+    for proc in psutil.process_iter():
+        try:
+            for item in proc.open_files():
+                if fpath == item.path:
+                    return True
+        except Exception:
+            pass
+
+    return False
+
+def write_lookup_to_csv_file(primary_shard_key_dict, lookup_table_file, events_folder_path):
     lookup_table_path = events_folder_path.replace('events/','lookup_table/')
     lookup_table_file_name = lookup_table_file.split("/")[-1]
+    lookup_table_full_file_path = '{}{}'.format(lookup_table_path,lookup_table_file_name)
 
-    if newfile_or_append_to_file == "newfile":
+    # see if the look table file exists
+    if os.path.isfile(lookup_table_full_file_path):
+        # if it does make sure something else isn't writing to it
+        response = has_handle(lookup_table_full_file_path)
+        # if another program has the file open wait 60 seconds and try again
+        if response:
+            time.sleep(60)
+            write_lookup_to_csv_file(primary_shard_key_dict, lookup_table_file, events_folder_path)
+        else:
+            shard_key_ids_from_dict = primary_shard_key_dict.keys()
+            list_of_ids = list()
+            with open("{}{}".format(lookup_table_path, lookup_table_file_name), 'r') as csv_file:
+                reader = csv.DictReader(csv_file)
+                for row in reader:
+                    list_of_ids.append(row['shard_key_id'])
+            ids_to_add = list(set(shard_key_ids_from_dict) - set(list_of_ids))
+            # create the lookup table if this is the first time we are creating data
+            if len(ids_to_add) > 0:
+                lookup_table = Lookup_Table_Generator(id_list=ids_to_add, lookup_file=lookup_table_file)
+                lookup_table_list = lookup_table.create_table()
+                with open("{}{}".format(lookup_table_path, lookup_table_file_name), 'a') as f:
+                    # take lookup_table_list and write to to a csv file
+                    fieldnames = lookup_table_list[0].keys()
+                    writer = csv.DictWriter(f, fieldnames=fieldnames)
+                    for dict in lookup_table_list:
+                        writer.writerow(dict)
+    else:
         # create the lookup table directory
         lookup_table_directory = os.path.dirname(lookup_table_path)
-        os.makedirs(lookup_table_directory)
+        if not os.path.isdir(lookup_table_directory):
+            os.makedirs(lookup_table_directory)
         # create the lookup table if this is the first time we are creating data
         lookup_table = Lookup_Table_Generator(id_list=primary_shard_key_dict, lookup_file=lookup_table_file)
         lookup_table_list = lookup_table.create_table()
         # take lookup_table_list and write to to a csv file
-
         with open("{}{}".format(lookup_table_path, lookup_table_file_name), 'w') as f:
             fieldnames = lookup_table_list[0].keys()
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for dicts in lookup_table_list:
                 writer.writerow(dicts)
-    elif newfile_or_append_to_file == "append":
-        shard_key_ids_from_dict = primary_shard_key_dict.keys()
-        list_of_ids = list()
-        with open("{}{}".format(lookup_table_path,lookup_table_file_name), 'r') as csv_file:
-            reader = csv.DictReader(csv_file)
-            for row in reader:
-                list_of_ids.append(row['shard_key_id'])
-        ids_to_add = list(set(shard_key_ids_from_dict) - set(list_of_ids))
-        # create the lookup table if this is the first time we are creating data
-        if len(ids_to_add) > 0:
-            lookup_table = Lookup_Table_Generator(id_list=ids_to_add, lookup_file=lookup_table_file)
-            lookup_table_list = lookup_table.create_table()
-            with open("{}{}".format(lookup_table_path,lookup_table_file_name), 'a') as f:
-                # take lookup_table_list and write to to a csv file
-                fieldnames = lookup_table_list[0].keys()
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                for dict in lookup_table_list:
-                    writer.writerow(dict)
 
 def ensure_dir_exists(folder_path):
     directory = os.path.dirname(folder_path)
@@ -268,16 +291,16 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         if round(progress_counter % ten_percent) == 0:
             print("Progress: {}%".format(round((progress_counter/num_user),2)*100))
     # if first run create table, it not the first run read in csv file, check for new users, append new user data
-    if initial_data_generation == True:
-        write_lookup_to_csv_file(newfile_or_append_to_file='newfile',
-                          lookup_table_file=lookup_table_file,
-                          primary_shard_key_dict=primary_shard_key_dict,
-                          events_folder_path=event_folder_path)
-    else:
-        write_lookup_to_csv_file(newfile_or_append_to_file='append',
-                          lookup_table_file=lookup_table_file,
-                          primary_shard_key_dict=primary_shard_key_dict,
-                          events_folder_path=event_folder_path)
+
+    write_lookup_to_csv_file(
+                      lookup_table_file=lookup_table_file,
+                      primary_shard_key_dict=primary_shard_key_dict,
+                      events_folder_path=event_folder_path)
+    # else:
+    #     write_lookup_to_csv_file(newfile_or_append_to_file='append',
+    #                       lookup_table_file=lookup_table_file,
+    #                       primary_shard_key_dict=primary_shard_key_dict,
+    #                       events_folder_path=event_folder_path)
     # create a list of all ids that should now churn
     ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
     # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
@@ -297,7 +320,7 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now()
+    today_date = datetime.datetime.now() + datetime.timedelta(days=35)
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
