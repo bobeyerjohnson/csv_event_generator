@@ -225,7 +225,6 @@ def write_to_json_file(events,event_folder_path,file_name, today_date):
 def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file_path, lookup_table_file):
     event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
     primary_shard_key_dict = all_ids
-    combined_data = list()
     # get the number of users to understand progress and print to console, plus make sure we write final events to a file
     num_user = len(all_ids)
     progress_counter = 0
@@ -258,7 +257,6 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
         #check if file exists, and if not open it. this is for when we run the script after the first run to make sure we have a file to write to when the dir exists from a previous run
         try:
             if events_file.closed:
-                # if events_file.closed:
                 # open the file we want to write events to
                 event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
                 events_file = open('{}/{}'.format(full_event_directory_path_obj, event_file_name), 'wb')
@@ -308,12 +306,6 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
                       lookup_table_file=lookup_table_file,
                       primary_shard_key_dict=primary_shard_key_dict,
                       events_folder_path=event_folder_path)
-    # else:
-    #     write_lookup_to_csv_file(newfile_or_append_to_file='append',
-    #                       lookup_table_file=lookup_table_file,
-    #                       primary_shard_key_dict=primary_shard_key_dict,
-    #                       events_folder_path=event_folder_path)
-    # create a list of all ids that should now churn
     ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
     # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
     for id in ids_to_remove:
@@ -338,9 +330,12 @@ if __name__ == '__main__':
     config_directory = os.path.dirname(config_path)
     if not os.path.exists(config_directory):
         number_of_original_users, new_user_to_generate_per_period = ask_for_number_of_users()
-        event_file = ask_for_event_file()
-        user_flows_file = ask_for_flows_file()
-        lookup_table_file = ask_for_lookup_table_file()
+        event_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-Events.csv'
+        user_flows_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-Flows.csv'
+        lookup_table_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-lookup_table.csv'
+        # event_file = ask_for_event_file()
+        # user_flows_file = ask_for_flows_file()
+        # lookup_table_file = ask_for_lookup_table_file()
         event_folder_path = ask_to_specify_event_path(current_path=current_path)
         os.makedirs(config_directory)
         # write the config file which will just contain the file paths for the event and user flow files

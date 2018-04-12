@@ -5,6 +5,7 @@ import uuid
 from models.event import Event
 from models.functions import csv_to_dict, increase_time_event_time
 import datetime
+from models.event_properties import Event_Properties
 
 
 '''
@@ -41,9 +42,28 @@ class User(object):
         self.churn_prob_reset_counter = churn_prob_reset_counter
         self.skip_days_counter_reset_value = 4
 
+    def write_to_open_file(self,open_file,event):
+        open_file.write(json.dumps(event).encode())
+        open_file.write(','.encode())
+
+    def random_events(self, number_of_events, event_instance, open_file,event_dict):
+        for x in range(number_of_events):
+            if (self.time + datetime.timedelta(hours=1)) < self.today:
+                random_event_name = event_dict[round(random.uniform(0, 1) * (len(event_dict) - 1))]
+                single_event = event_instance.generate_event(event_name=random_event_name)
+                self.write_to_open_file(open_file,single_event)
+                ## increase the time stamp so we move forward in time
+                self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
+                    time=self.time,
+                    probability=self.probability,
+                    skip_days_counter=self.skip_days_counter,
+                    churn_prob_reset_counter=self.churn_prob_reset_counter,
+                    skip_days_counter_reset_value=self.skip_days_counter_reset_value
+                )
+            else:
+                break
+
     def generate_events(self, flows_obj, start_time):
-        # day_change_tacker is a variable to
-        day_change_tacker = False
         self.time = start_time
         event_list = list()
         while True:
@@ -53,27 +73,27 @@ class User(object):
             for keys, values in flows_obj.items():
                 # make sure we have not passed today's date
                 if (self.time + datetime.timedelta(hours=1)) < self.today:
+                    #TODO grab event properties and make sure they don't change within a single "flow"
+                    event_description = Event(primary_shard_key_name=self.primary_shard_key_name,
+                                    primary_shard_key_value=self.primary_shard_key_value,
+                                    event_properties=self.event_dict,
+                                    ts=self.time,
+                                    session_id=self.session_id,
+                                    shard_key_dict=self.shard_key_dict
+                                  )
                     for event_in_flow in values:
                         # make sure we have not passed today's date
                         if (self.time + datetime.timedelta(hours=1)) < self.today:
-                            # random check to see if we change the session_id as well as the other non-primary ids
+                            # random check to see if we change the the other non-primary shard_key ids
                             if (random.uniform(0, 1)) >= .8:
                                 self.session_id = uuid.uuid4()
                                 for key, value in self.shard_key_dict.items():
                                     self.shard_key_dict[key] = uuid.uuid4()
                             # random check to see if they do the event, self.probability is per user so that "good" user succeed more and "bad" user fail
                             if (self.probability * random.uniform(.9, 1.1)) >= .25:
-                                single_event = Event(event_name=event_in_flow,
-                                                     primary_shard_key_name=self.primary_shard_key_name,
-                                                     primary_shard_key_value=self.primary_shard_key_value,
-                                                     event_dict=self.event_dict,
-                                                     ts=self.time,
-                                                     session_id=self.session_id,
-                                                     shard_key_dict=self.shard_key_dict)
-                                event = single_event.generate_event()
-                                self.open_file.write(json.dumps(event).encode())
-                                self.open_file.write(','.encode())
-                                #event_list.append(event)
+                                # add the name of the event
+                                single_event = event_description.generate_event(event_name=event_in_flow)
+                                self.write_to_open_file(open_file=self.open_file, event=single_event)
                                 ## increase the time stamp so we move forward in time
                                 self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
                                     time=self.time,
@@ -84,54 +104,19 @@ class User(object):
                                 # random roll to see if they do more events between events in a flow
                                 # this will be totally random as to whether "good" or "bad" user do more events or not
                                 if random.uniform(0, 1) >= .5:
-                                    for x in range(6):
-                                        if (self.time + datetime.timedelta(hours=1)) < self.today:
-                                            random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
-                                            single_event = Event(event_name=random_event,
-                                                                 primary_shard_key_name=self.primary_shard_key_name,
-                                                                 primary_shard_key_value=self.primary_shard_key_value,
-                                                                 event_dict=self.event_dict, ts=self.time,
-                                                                 session_id=self.session_id,
-                                                                 shard_key_dict=self.shard_key_dict)
-                                            event = single_event.generate_event()
-                                            self.open_file.write(json.dumps(event).encode())
-                                            self.open_file.write(','.encode())
-
-                                            #event_list.append(event)
-                                            ## increase the time stamp so we move forward in time
-                                            self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(time=self.time,
-                                                                                                                                                          probability=self.probability,
-                                                                                                                                                          skip_days_counter=self.skip_days_counter,
-                                                                                                                                                          churn_prob_reset_counter=self.churn_prob_reset_counter,
-                                                                                                                                                          skip_days_counter_reset_value=self.skip_days_counter_reset_value)
-                                        else:
-                                            break
+                                    self.random_events(number_of_events=6,
+                                                       event_instance=event_description,
+                                                       open_file=self.open_file,
+                                                       event_dict=self.event_dict['event']
+                                                       )
                             # if they do not pass the funnel flow, make sure they break out of that flow
                             # and generate 5 random events
                             else:
-                                for variable in range(5):
-                                    if (self.time + datetime.timedelta(hours=1)) < self.today:
-                                        random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
-                                        single_event = Event(event_name=random_event,
-                                                             primary_shard_key_name=self.primary_shard_key_name,
-                                                             primary_shard_key_value=self.primary_shard_key_value,
-                                                             event_dict=self.event_dict,
-                                                             ts=self.time,
-                                                             session_id=self.session_id,
-                                                             shard_key_dict=self.shard_key_dict)
-                                        event = single_event.generate_event()
-                                        self.open_file.write(json.dumps(event).encode())
-                                        self.open_file.write(','.encode())
-
-                                        #event_list.append(event)
-                                        self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
-                                            time=self.time,
-                                            probability=self.probability,
-                                            skip_days_counter=self.skip_days_counter,
-                                            churn_prob_reset_counter=self.churn_prob_reset_counter,
-                                            skip_days_counter_reset_value=self.skip_days_counter_reset_value)
-                                    else:
-                                        break
+                                self.random_events(number_of_events=5,
+                                                   event_instance=event_description,
+                                                   open_file=self.open_file,
+                                                   event_dict=self.event_dict['event']
+                                                   )
                                 break
                         else:
                             break
@@ -142,58 +127,20 @@ class User(object):
                 break
             # after we have run through a defined flow of events let's do a check to see if other random events are done. Good users should do this more often
             if (self.probability * random.uniform(.9, 1.1)) >= .20 and (self.time + datetime.timedelta(hours=1)) < self.today:
-                num_range = random.randrange(0,10)
-                for counter in range(num_range):
-                    if (self.time + datetime.timedelta(hours=1)) < self.today:
-                        random_event = self.event_dict['event'][round(random.uniform(0, 1) * (len(self.event_dict['event']) - 1))]
-                        single_event = Event(event_name=random_event,
-                                             primary_shard_key_name=self.primary_shard_key_name,
-                                             primary_shard_key_value=self.primary_shard_key_value,
-                                             event_dict=self.event_dict,
-                                             ts=self.time,
-                                             session_id=self.session_id,
-                                             shard_key_dict=self.shard_key_dict)
-                        event = single_event.generate_event()
-                        self.open_file.write(json.dumps(event).encode())
-                        self.open_file.write(','.encode())
+                self.random_events(number_of_events=10,
+                                   event_instance=event_description,
+                                   open_file=self.open_file,
+                                   event_dict=self.event_dict['event']
+                                   )
 
-                        #event_list.append(event)
-                        ## increase the time stamp so we move forward in time
-                        self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
-                            time=self.time,
-                            probability=self.probability,
-                            skip_days_counter=self.skip_days_counter,
-                            churn_prob_reset_counter=self.churn_prob_reset_counter,
-                            skip_days_counter_reset_value=self.skip_days_counter_reset_value)
-                    else:
-                        break
-        #return self.open_file
-        # if len(event_list) == 0:
-        #     return None
-        # else:
-        #     return event_list
-
-    def generate_flows(self, flows_obj):
+    def generate_flows(self,flows_obj):
         self.generate_events(flows_obj=flows_obj, start_time=self.time)
-        # if we return none for the user list set make it so no_events_in_list is True
-        # if final_list_of_events:
-        #     no_events_in_list = False
-        # else:
-        #     no_events_in_list = True
         # do a check to see if we make the user churn or not. very bad users will churn every time
         if self.probability <= self.churn_threshold:
-            # give user below the churn threshold a chance to stick around, but users should always churn
+            # give user below the churn threshold a chance to stick around
             if self.probability <= random.uniform(0.2,0.9):
                 self.churn = True
-            # if no_events_in_list:
-            #     return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
         return self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
-        #     else:
-        #         return open_event_file, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
-        # # elif no_events_in_list:
-        # #     return None, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
-        # elif not no_events_in_list:
-        #     return final_list_of_events, self.churn, self.probability, self.skip_days_counter, self.churn_prob_reset_counter, self.time
 
     # property to properly format the csv file of the event flows
     @property
