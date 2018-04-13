@@ -46,11 +46,11 @@ class User(object):
         open_file.write(json.dumps(event).encode())
         open_file.write(','.encode())
 
-    def random_events(self, number_of_events, event_instance, open_file,event_dict):
+    def random_events(self, number_of_events, event_instance, open_file,event_dict, ts):
         for x in range(number_of_events):
             if (self.time + datetime.timedelta(hours=1)) < self.today:
                 random_event_name = event_dict[round(random.uniform(0, 1) * (len(event_dict) - 1))]
-                single_event = event_instance.generate_event(event_name=random_event_name)
+                single_event = event_instance.generate_event(event_name=random_event_name, ts=ts)
                 self.write_to_open_file(open_file,single_event)
                 ## increase the time stamp so we move forward in time
                 self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
@@ -73,11 +73,9 @@ class User(object):
             for keys, values in flows_obj.items():
                 # make sure we have not passed today's date
                 if (self.time + datetime.timedelta(hours=1)) < self.today:
-                    #TODO grab event properties and make sure they don't change within a single "flow"
                     event_description = Event(primary_shard_key_name=self.primary_shard_key_name,
                                     primary_shard_key_value=self.primary_shard_key_value,
                                     event_properties=self.event_dict,
-                                    ts=self.time,
                                     session_id=self.session_id,
                                     shard_key_dict=self.shard_key_dict
                                   )
@@ -92,7 +90,7 @@ class User(object):
                             # random check to see if they do the event, self.probability is per user so that "good" user succeed more and "bad" user fail
                             if (self.probability * random.uniform(.9, 1.1)) >= .25:
                                 # add the name of the event
-                                single_event = event_description.generate_event(event_name=event_in_flow)
+                                single_event = event_description.generate_event(event_name=event_in_flow,ts=self.time)
                                 self.write_to_open_file(open_file=self.open_file, event=single_event)
                                 ## increase the time stamp so we move forward in time
                                 self.time, self.probability, self.skip_days_counter, self.churn_prob_reset_counter = increase_time_event_time(
@@ -107,7 +105,8 @@ class User(object):
                                     self.random_events(number_of_events=6,
                                                        event_instance=event_description,
                                                        open_file=self.open_file,
-                                                       event_dict=self.event_dict['event']
+                                                       event_dict=self.event_dict['event'],
+                                                       ts=self.time
                                                        )
                             # if they do not pass the funnel flow, make sure they break out of that flow
                             # and generate 5 random events
@@ -115,7 +114,8 @@ class User(object):
                                 self.random_events(number_of_events=5,
                                                    event_instance=event_description,
                                                    open_file=self.open_file,
-                                                   event_dict=self.event_dict['event']
+                                                   event_dict=self.event_dict['event'],
+                                                   ts=self.time
                                                    )
                                 break
                         else:
@@ -130,7 +130,8 @@ class User(object):
                 self.random_events(number_of_events=10,
                                    event_instance=event_description,
                                    open_file=self.open_file,
-                                   event_dict=self.event_dict['event']
+                                   event_dict=self.event_dict['event'],
+                                   ts=self.time
                                    )
 
     def generate_flows(self,flows_obj):
@@ -148,10 +149,9 @@ class User(object):
         flows = dict()
         with open(self.user_flows_file_location, newline='', encoding='utf-8') as f:
             reader = csv.reader(f)
+            next(reader) # skip the header of the file
             for row in reader:
-                flows[row[0]] = row
-                flows[row[0]].remove(row[0])
-        del flows['Flow name']
+                flows[row[0]] = row[1:]
         for keys, pair in flows.items():
             flows[keys] = list(filter(None,flows[keys]))
         return flows

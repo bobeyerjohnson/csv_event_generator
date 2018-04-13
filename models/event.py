@@ -9,22 +9,13 @@ Event class to handle the creation of a event and associated meta data
 
 class Event(object):
 
-    def __init__(self,primary_shard_key_name, primary_shard_key_value, event_properties, ts, session_id, shard_key_dict):
-        self.primary_shard_key_name = primary_shard_key_name
-        self.primary_shard_key_value = primary_shard_key_value
-        self.event_properties = event_properties
-        self.ts = ts
-        self.session_id = session_id
-        self.shard_key_dict = shard_key_dict
-
-    def generate_event(self, event_name):
-        event = dict()
-        event[self.primary_shard_key_name] = str(self.primary_shard_key_value)
-        event['event'] = event_name
-        event['session_id'] = str(self.session_id)
-        for key, shard_values in self.shard_key_dict.items():
-            event[key] = str(shard_values)
-        for property_name, values in self.event_properties.items():
+    def __init__(self,primary_shard_key_name, primary_shard_key_value, event_properties, session_id, shard_key_dict):
+        self.event = dict()
+        self.event[primary_shard_key_name] = str(primary_shard_key_value)
+        self.event['session_id'] = str(session_id)
+        for key, shard_values in shard_key_dict.items():
+            self.event[key] = str(shard_values)
+        for property_name, values in event_properties.items():
             # be sure to skip the event dict
             if not property_name == 'event':
                 # get the number of property values for each property
@@ -55,9 +46,13 @@ class Event(object):
                         property_index = random.randrange((intervals * 3), ((intervals * 4) + index_remainder))
                 else:
                     property_index = 0
-                event[property_name] = self.event_properties[property_name][property_index]
-                event['ts'] = self.ts.strftime("%Y-%m-%d %H:%M:%S")
-        return event
+                self.event[property_name] = event_properties[property_name][property_index]
+
+
+    def generate_event(self, event_name, ts):
+        self.event['event'] = event_name
+        self.event['ts'] = ts.strftime("%Y-%m-%d %H:%M:%S")
+        return self.event
 
 
 

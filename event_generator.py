@@ -1,5 +1,3 @@
-
-
 __author__ = 'bojohnson'
 
 from pathlib import Path
@@ -16,18 +14,16 @@ import csv
 import time
 import shutil
 
-
-
 '''
 this is a small app the creates a user and then generates events for them
 based various separate csv files containing events, event meta data, 
 user flows, and a lookup table of user attributes
 
 '''
-#TODO make it so that we handle 'locked' header fields as not case sensitive - Ex 'event' 'flow name'
 
 def file_is_locked(filepath):
-    """Checks if a file is locked by opening it in append mode.
+    """
+    Checks if a file is locked by opening it in append mode.
     If no exception thrown, then the file is not locked.
     """
     locked = None
@@ -93,46 +89,43 @@ def write_lookup_to_csv_file(primary_shard_key_dict, lookup_table_file, events_f
             for dicts in lookup_table_list:
                 writer.writerow(dicts)
 
-def ensure_dir_exists(folder_path):
-    directory = os.path.dirname(folder_path)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
+def check_if_file(user_input):
+    file = user_input.strip()
+    file_check = Path(file)
+    if file_check.is_file():
+        return True
+    else:
+        return False
 
 def ask_for_event_file():
     event_file = input(
         "Please provide the Event csv file \n Ex:/mnt/tank/pool/filer2/demo_data/social_demo/events_csv.csv \n File: ")
-    event_file = event_file.strip()
-    event_file_check = Path(event_file)
-    if not event_file_check.is_file():
+    if not check_if_file(event_file):
         print("That doesn't seem to be a file. Please double check the file path and submit again")
-        ask_for_event_file()
+        return ask_for_event_file()
     return event_file
 
 def ask_for_flows_file():
     user_flows_file = input(
         "Please provide the User Flows csv file \n Ex:/mnt/tank/pool/filer2/demo_data/social_demo/user_flows_csv.csv \n File: ")
-    user_flows_file = user_flows_file.strip()
-    user_flows_file_check = Path(user_flows_file)
-    if not user_flows_file_check.is_file():
+    if not check_if_file(user_flows_file):
         print("That doesn't seem to be a file. Please double check the file path and submit again")
-        ask_for_flows_file()
+        return ask_for_flows_file()
     return user_flows_file
 
 def ask_for_lookup_table_file():
     lookup_table_file = input(
         "Please provide the Lookup Table Data csv file \n Ex:/mnt/tank/pool/filer2/demo_data/social_demo/user_lookup_table.csv \n File: ")
-    lookup_table_file = lookup_table_file.strip()
-    lookup_table_file_check = Path(lookup_table_file)
-    if not lookup_table_file_check.is_file():
+    if not check_if_file(lookup_table_file):
         print("That doesn't seem to be a file. Please double check the file path and submit again")
-        ask_for_lookup_table_file()
+        return ask_for_lookup_table_file()
     return lookup_table_file
 
 def ask_for_number_of_users():
     number_of_original_users = int(input("How many users would you like to generate to start? "))
-    if type(number_of_original_users) != int:
+    if type(number_of_original_users) != int or number_of_original_users <0:
         print("That was not a number. Please enter a number greater than 0")
-        ask_for_number_of_users()
+        return ask_for_number_of_users()
     new_user_to_generate_per_period = ((number_of_original_users * .1) / 30)
     return number_of_original_users, new_user_to_generate_per_period
 
@@ -154,14 +147,14 @@ def ask_to_specify_event_path(current_path):
         if os.path.exists(event_path_check):
             return "{}events/".format(event_path)
         else:
-            print("That folder location doesn't seem to exist. Please check the path and try again")
-            ask_to_specify_event_path()
+            print("That directory location doesn't seem to exist. Please check the path and try again")
+            return ask_to_specify_event_path()
     elif specify_path.strip().lower() == 'no':
         event_path = "{}/events/".format(current_path)
         return event_path
     else:
         print("That wasn't a valid answer. Please try again.")
-        ask_to_specify_event_path()
+        return ask_to_specify_event_path()
 
 def gzip_existing_file(event_directory_path,output_file_name, json_file):
     # delete the trailing common from append_to_open_json_file()
@@ -180,47 +173,20 @@ def gzip_existing_file(event_directory_path,output_file_name, json_file):
     except Exception:
         pass
 
-def write_gzip_file(events,event_folder_path, today_date):
-    # check if a folder today_date exists, if not create it.
-    # We are subtracting one day since this will run at midnight and generate events up till today
-    event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
-    event_directory = os.path.dirname(event_folder_path_with_date)
-    os.umask(0)
-    if os.path.exists(event_directory):
-        with gzip.open('{}/{}.gz'.format(event_directory,
-                                         (today_date).strftime("%Y-%m-%d%H%M%S")), 'w') as f:
-            f.write(json.dumps(events).encode(errors='ignore'))
-    else:
-        os.makedirs(event_directory)
-        with gzip.open('{}/{}.gz'.format(event_directory,
-                                         (today_date).strftime("%Y-%m-%d%H%M%S")), 'w') as f:
-            f.write(json.dumps(events).encode(errors='ignore'))
+def generate_users(num_of_users):
+    primary_shard_key_dict = dict()
+    for x in range(num_of_users):
+        primary_shard_key = str(uuid.uuid4())
+        user_probability = random.uniform(0, 1)
+        primary_shard_key_dict[primary_shard_key] = dict()
+        primary_shard_key_dict[primary_shard_key]['user_probability'] = user_probability
+        primary_shard_key_dict[primary_shard_key]['churned'] = 'False'
+        primary_shard_key_dict[primary_shard_key]['skip_days_counter'] = 0
+        primary_shard_key_dict[primary_shard_key]['churn_prob_reset_counter'] = 0
+        primary_shard_key_dict[primary_shard_key]['last_event_time'] = datetime.datetime.strftime(last_date_run,
+                                                                                                  "%Y-%m-%d %H:%M:%S")
+    return primary_shard_key_dict
 
-def create_write_json_file(events,event_directory,file_name):
-    open_json_file = open('{}/{}.json'.format(event_directory, file_name), 'wb')
-    # need an opening bracket for proper json. events we dump on each pass is actually  a list of dicts
-    open_json_file.write('['.encode(errors='ignore'))
-    open_json_file.write(json.dumps(events).encode(errors='ignore'))
-    open_json_file.write(','.encode(errors='ignore'))
-    return open_json_file
-
-def append_to_open_json_file(open_json_file, events):
-    open_json_file.write(json.dumps(events).encode(errors='ignore'))
-    open_json_file.write(','.encode(errors='ignore'))
-
-def write_to_json_file(events,event_folder_path,file_name, today_date):
-
-    event_folder_path_with_date = "{}{}/".format(event_folder_path, (today_date).strftime("%Y-%m-%d"))
-    event_directory = os.path.dirname(event_folder_path_with_date)
-    os.umask(0)
-    if os.path.exists(event_directory):
-        with open('{}/{}.json'.format(event_directory, file_name), 'ab') as f:
-            f.write(json.dumps(events).encode(errors='ignore'))
-    else:
-        os.makedirs(event_directory)
-        with open('{}/{}.json'.format(event_directory,file_name), 'wb') as f:
-            f.write(json.dumps(events).encode(errors='ignore'))
-    return event_directory
 
 def generate_data(all_ids, last_run_date, initial_data_generation, today_date, event_folder_path, user_flows_file, event_file_path, lookup_table_file):
     event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
@@ -228,9 +194,13 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
     # get the number of users to understand progress and print to console, plus make sure we write final events to a file
     num_user = len(all_ids)
     progress_counter = 0
-    ten_percent = num_user*.1
+    ten_percent = round(num_user*.1)
     # Loop through all user Id
     for shard_key, shard_key_values in primary_shard_key_dict.items():
+        progress_counter = progress_counter + 1
+        # make sure that we write the last bits of data if combined_data is less than 1 GB
+        if round(progress_counter % ten_percent) == 0:
+            print("Event Writing Progress: {}%".format(round((progress_counter / num_user), 2) * 100))
         start_date = last_run_date
         # if this the first time we are generating user we need to make sure they aren't all created on the same day
         # we'll do a random roll to put the users creation date sometime between now and 90 days ago
@@ -296,20 +266,18 @@ def generate_data(all_ids, last_run_date, initial_data_generation, today_date, e
                                json_file=events_file)
             # reset the file name so we can create a new file on the next pass
             event_file_name = datetime.datetime.now().strftime("%Y-%m-%d%H%M%S")
-        progress_counter = progress_counter + 1
-        # make sure that we write the last bits of data if combined_data is less than 1 GB
-        if round(progress_counter % ten_percent) == 0:
-            print("Progress: {}%".format(round((progress_counter/num_user),2)*100))
     # if first run create table, it not the first run read in csv file, check for new users, append new user data
-
+    print('writing lookup file')
     write_lookup_to_csv_file(
                       lookup_table_file=lookup_table_file,
                       primary_shard_key_dict=primary_shard_key_dict,
                       events_folder_path=event_folder_path)
+    print('removing churned shard keys')
     ids_to_remove = [ids for ids in primary_shard_key_dict if primary_shard_key_dict[ids]['churned'] == True]
     # remove the ids that should churn from our primary_shard_key_dict so they "churn" in the dataset
     for id in ids_to_remove:
         del primary_shard_key_dict[id]
+    print('saving shard key list')
     # after all the ids have generated events write the remaining users to a file and save
     with open("{}{}.json".format(config_path, user_id_list_file_name), 'w') as write_user_id_file:
         write_user_id_file.write(json.dumps(primary_shard_key_dict))
@@ -324,49 +292,32 @@ if __name__ == '__main__':
     #global values
     user_id_list_file_name = 'user_id_list'
     last_date_run_file = 'last_date_script_was_run'
-    today_date = datetime.datetime.now()
+    today_date = datetime.datetime.now() +datetime.timedelta(days=5)
     current_path = os.path.dirname(os.path.abspath(__file__))
     config_path = "{}/config/".format(current_path)
     config_directory = os.path.dirname(config_path)
-    if not os.path.exists(config_directory):
+    config_file_check = Path("{}config.json".format(config_path))
+    if not config_file_check.is_file():
         number_of_original_users, new_user_to_generate_per_period = ask_for_number_of_users()
-        event_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-Events.csv'
-        user_flows_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-Flows.csv'
-        lookup_table_file = '/Users/bobeyer-johnson/Documents/interana/Solutions/sample_data_files/ecommerce/DummyData-MarketplaceEcommerceDataSet-lookup_table.csv'
-        # event_file = ask_for_event_file()
-        # user_flows_file = ask_for_flows_file()
-        # lookup_table_file = ask_for_lookup_table_file()
+        event_file = ask_for_event_file()
+        user_flows_file = ask_for_flows_file()
+        lookup_table_file = ask_for_lookup_table_file()
         event_folder_path = ask_to_specify_event_path(current_path=current_path)
-        os.makedirs(config_directory)
-        # write the config file which will just contain the file paths for the event and user flow files
-        write_config_file(event_file=event_file,
-                          user_flows_file=user_flows_file,
-                          lookup_table_file= lookup_table_file,
-                          config_path=config_path,
-                          event_folder_path=event_folder_path,
-                          new_user_to_generate_per_period=new_user_to_generate_per_period)
+        # if config dir has been created on accident in the pass let this fail silently and continue
+        try:
+            os.makedirs(config_directory)
+        except Exception:
+            pass
     else:
         # let's grab the the configuration details we need
-        if os.path.getsize("{}config.json".format(config_path)) > 0:
-            with open ("{}config.json".format(config_path), 'r') as config_file_reader:
-                config_file_data = json.loads(config_file_reader.read())
-                event_file = config_file_data['event_file_path']
-                user_flows_file = config_file_data['flows_file_path']
-                lookup_table_file = config_file_data['lookup_table_path']
-                event_folder_path = config_file_data['event_folder_path']
-                new_user_to_generate_per_period = config_file_data['new_user_to_generate_per_period']
-        else:
-            number_of_original_users, new_user_to_generate_per_period = ask_for_number_of_users()
-            event_file = ask_for_event_file()
-            user_flows_file = ask_for_flows_file()
-            lookup_table_file = ask_for_lookup_table_file()
-            event_folder_path = ask_to_specify_event_path(current_path=current_path)
-            write_config_file(event_file=event_file,
-                              user_flows_file=user_flows_file,
-                              lookup_table_file= lookup_table_file,
-                              config_path=config_path,
-                              event_folder_path=event_folder_path)
-    # get the last time the script was run from the data file
+        with open ("{}config.json".format(config_path), 'r') as config_file_reader:
+            config_file_data = json.loads(config_file_reader.read())
+            event_file = config_file_data['event_file_path']
+            user_flows_file = config_file_data['flows_file_path']
+            lookup_table_file = config_file_data['lookup_table_path']
+            event_folder_path = config_file_data['event_folder_path']
+            new_user_to_generate_per_period = config_file_data['new_user_to_generate_per_period']
+    # get the last time the script was run from the data file, if the file doesn't exist, write it
     date_file_check = Path("{}{}".format(config_path, last_date_run_file))
     if date_file_check.is_file():
         with open("{}{}".format(config_path, last_date_run_file), 'r') as date_file:
@@ -379,19 +330,20 @@ if __name__ == '__main__':
 
     # check to see if today's current time is earlier than the time right now. if it is run the script
     if last_date_run < today_date:
-        # get the event dict
+        # get the event dict and format into a python dict
         event_dict = csv_to_dict(event_file)
-        ## check to see if we have a list of the primary shard key, if not create one and save as a csv file
-        my_file = Path("{}{}.json".format(config_path, user_id_list_file_name))
-        if my_file.is_file():
+        # check to see if we have a list of the primary shard keys, if not create one and save as a file
+        list_of_ids_file = Path("{}{}.json".format(config_path, user_id_list_file_name))
+        if list_of_ids_file.is_file():
             with open("{}{}.json".format(config_path, user_id_list_file_name), 'r') as read_user_id_file:
                 primary_shard_key_dict = json.loads(read_user_id_file.read())
                 primary_shard_key_dict = primary_shard_key_dict
             # add some new users to the file - this is mostly so we can change metrics like retention and do "new user" analysis
+            print('Generating New Shard Key Ids')
             primary_shard_key_dict = get_new_users(primary_shard_key_dict=primary_shard_key_dict,
                                                    number_of_users=new_user_to_generate_per_period,
                                                    event_start_time=last_date_run)
-            print('script running!')
+            print('Starting Event Generation')
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
                           initial_data_generation=False,
@@ -400,21 +352,23 @@ if __name__ == '__main__':
                           user_flows_file=user_flows_file,
                           event_file_path=event_file,
                           lookup_table_file= lookup_table_file)
+            print('writing config files')
+            # write the config files last
+            write_config_file(event_file=event_file,
+                              user_flows_file=user_flows_file,
+                              lookup_table_file=lookup_table_file,
+                              config_path=config_path,
+                              event_folder_path=event_folder_path,
+                              new_user_to_generate_per_period=new_user_to_generate_per_period)
+            print('script finished running')
         else:
             # set the "last run date" to be 3 months ago so we can back propogate some new data
             last_date_run = datetime.datetime.now() - datetime.timedelta(days=90)
-            # create a dictionary of users where the key is the user id and store additional details about the user in another dict
-            primary_shard_key_dict = dict()
-            for x in range(number_of_original_users):
-                primary_shard_key = str(uuid.uuid4())
-                user_probability = random.uniform(0, 1)
-                primary_shard_key_dict[primary_shard_key] = dict()
-                primary_shard_key_dict[primary_shard_key]['user_probability'] = user_probability
-                primary_shard_key_dict[primary_shard_key]['churned'] = 'False'
-                primary_shard_key_dict[primary_shard_key]['skip_days_counter'] = 0
-                primary_shard_key_dict[primary_shard_key]['churn_prob_reset_counter'] = 0
-                primary_shard_key_dict[primary_shard_key]['last_event_time'] = datetime.datetime.strftime(last_date_run,"%Y-%m-%d %H:%M:%S")
-            print('script running!')
+            # create a dictionary of users where the key is the first shard key listed in the event file and store additional details about the user in another dict
+            print('Generating original list of shard keys')
+            # generate our list of shard key ids and shard key properties
+            primary_shard_key_dict = generate_users(number_of_original_users)
+            print('Starting Event Generation')
             generate_data(all_ids=primary_shard_key_dict,
                           last_run_date=last_date_run,
                           initial_data_generation=True,
@@ -423,4 +377,13 @@ if __name__ == '__main__':
                           user_flows_file=user_flows_file,
                           event_file_path=event_file,
                           lookup_table_file=lookup_table_file)
+            print('writing config files')
+            # write the config files last
+            write_config_file(event_file=event_file,
+                              user_flows_file=user_flows_file,
+                              lookup_table_file=lookup_table_file,
+                              config_path=config_path,
+                              event_folder_path=event_folder_path,
+                              new_user_to_generate_per_period=new_user_to_generate_per_period)
+            print('script finished running')
 
