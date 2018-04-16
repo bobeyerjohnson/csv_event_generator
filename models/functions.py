@@ -89,8 +89,9 @@ def increase_time_event_time(time, probability, skip_days_counter_reset_value, s
         # we can make them stop producing events
         new_time_str = new_time.strftime("%Y-%m-%d")
         old_time_str = time.strftime("%Y-%m-%d")
-        if new_time_str != old_time_str:
-            new_skip_days_counter = skip_days_counter + 1
+        if new_time_str > old_time_str:
+            days_difference = new_time.day - time.day
+            new_skip_days_counter = skip_days_counter + days_difference
     return new_time, new_prob, new_skip_days_counter, new_churn_prob_reset_counter
 
 def get_new_users(primary_shard_key_dict, number_of_users,event_start_time):
