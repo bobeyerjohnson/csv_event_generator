@@ -5,7 +5,7 @@ import uuid
 from models.event import Event
 from models.functions import csv_to_dict, increase_time_event_time
 import datetime
-from models.event_properties import Event_Properties
+
 
 
 '''
